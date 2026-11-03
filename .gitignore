@@ -10,3 +10,5 @@ Thumbs.db
 .sites-runtime/
 .sites-checkout*/
 .openai/
+
+/dist/parent/

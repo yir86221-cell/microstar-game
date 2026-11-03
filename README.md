@@ -66,3 +66,9 @@ npm test
 此交接包不包含原项目的 Git 历史、托管服务身份、访问凭据或成员名单。GitHub 协作权限与试玩网站访问权限应分别配置。
 
 所有页面保留右下角家长入口与占位页，进入时暂停，返回恢复原页面。
+
+## 家长入口整合
+
+右下角家长入口已连接 parent-app，打开期间儿童游戏暂停，返回保留关卡和进度。家长端计划与演示数据目前独立，尚未与儿童游戏同步记录；第四阶段仅在家长端。
+
+首次运行先在 parent-app 执行 pnpm install --frozen-lockfile，再在根目录执行 npm run build:parent；随后 npm run dev 可同时预览两端。发布前同样运行 npm run build:parent，将生成的 dist/parent 与儿童端一起部署。家长端源码仍由原组员维护，生成文件不手工修改。
