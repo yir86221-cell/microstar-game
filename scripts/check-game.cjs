@@ -25,3 +25,10 @@ run('S.phase=3; startLevel(3)');assert.equal((root.innerHTML.match(/data-object=
 run('S.mode="slap"');for(let i=0;i<3;i++){run('respond()');for(let t=0;t<1600;t+=70)run(`tick(${2000+i*2000+t})`);}assert.equal(run('S.overlay'),'done','three responses complete level');
 run('home()');assert.match(root.innerHTML,/点击或拍击来开始吧/);assert.equal(run('S.overlay'),null);
 console.log('PASS: navigation, stage layouts, menu pause, repeated input, precise selection, hold cancellation/completion, level completion.');
+
+// Parent entry is global, pauses play and returns to the exact previous screen.
+for(const page of ['home','phases','game']){run("S.page='"+page+"'; S.overlay=null; render()");assert.equal((root.innerHTML.match(/class="parent-entry"/g)||[]).length,1);run("action('parent')");assert.equal(run('S.overlay'),'parent');run("action('parent-return')");assert.equal(run('S.page'),page);assert.equal(run('S.overlay'),null);}
+for(const overlay of ['menu','pause','done']){run("S.page='game'; S.overlay='"+overlay+"'; render(); action('parent')");winListeners.keydown({key:'Escape',preventDefault:()=>{}});assert.equal(run('S.overlay'),overlay,'return restores prior overlay');}
+run("startLevel(0); respond(); action('parent'); tick(20000)");assert.equal(run('S.reward'),1500);assert.equal(run('S.round'),1);run("action('parent-return')");assert.equal(run('S.round'),1);
+run("home(); action('parent')");listeners.click({target:{closest:()=>null},detail:1});assert.equal(run('S.page'),'home');assert.equal(run('S.overlay'),'parent');
+console.log('PASS: parent entry on every page, return navigation, overlay restoration and paused timers.');
