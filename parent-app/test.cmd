@@ -1,19 +1,35 @@
 @echo off
-rem 跑家长端的 82 个单元测试和类型检查。
-setlocal
+title MicroStar parent app - tests
 cd /d "%~dp0"
 
-where pnpm >nul 2>nul
+where npm >nul 2>nul
 if errorlevel 1 (
-  echo [x] 没有找到 pnpm。先运行一次：
-  echo     npm install -g pnpm
+  echo  Node.js is required: https://nodejs.org
+  pause
   exit /b 1
 )
 
-call pnpm install
-if errorlevel 1 exit /b 1
+if not exist "node_modules" (
+  echo  Installing dependencies first...
+  call npm install
+  if errorlevel 1 exit /b 1
+)
 
-call pnpm exec vitest run
-if errorlevel 1 exit /b 1
+call npm test
+if errorlevel 1 goto failed
 
-call pnpm run typecheck
+call npm run typecheck
+if errorlevel 1 goto failed
+
+echo.
+echo  All tests and type checks passed.
+echo.
+pause
+exit /b 0
+
+:failed
+echo.
+echo  Something failed. Send the red lines to your AI.
+echo.
+pause
+exit /b 1

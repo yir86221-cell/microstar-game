@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",
-    "@microstar/core-domain": "workspace:*",
-    "@microstar/core-protocol": "workspace:*"
+    "@microstar/core-domain": "*",
+    "@microstar/core-protocol": "*"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",
