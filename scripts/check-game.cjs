@@ -52,3 +52,5 @@ for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-en
 start(1,4);run("setOverlay('menu');action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
 
 for(const p of [1,2,3]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:3);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
+
+start(2,1);run("respond();action('parent')");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
