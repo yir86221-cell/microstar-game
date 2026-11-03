@@ -1,0 +1,39 @@
+name: 试玩反馈
+description: 记录界面、操作或关卡问题
+title: "[试玩] "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 试玩版本
+      description: 填写版本日期或提交编号
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备与浏览器
+      placeholder: 平板型号、系统、浏览器、横屏或竖屏
+    validations:
+      required: true
+  - type: input
+    id: level
+    attributes:
+      label: 阶段与关卡
+      placeholder: Phase I，让小鸡跳舞
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 交互模式
+      options:
+        - 拍击
+        - 精准点击
+        - 悬停（接触停留）
+        - 首页或菜单
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎样出现这个问题
+      description: 写出操作步骤、期望结果和实际结果，可以附截图或视频
+    validations:
+      required: true
