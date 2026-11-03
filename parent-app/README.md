@@ -38,15 +38,29 @@
 
 ## 运行
 
-需要 Node.js 20 或更新版本，以及 pnpm。
+和根目录的儿童游戏一样，只需要 **Node.js 20 或更新版本**，不需要另外装 pnpm 或其它工具。
+
+**最简单的方式**：双击本目录下的 `dev.cmd`。
+它会在第一次运行时自动装依赖，然后起开发服务器，浏览器打开 `http://localhost:5180`。
+
+**或者用命令行**：
 
 ```sh
-npm install -g pnpm      # 只需一次
-./dev.cmd                # 起开发服务器，浏览器打开 http://localhost:5180
-./test.cmd               # 82 个测试 + 类型检查
+cd parent-app
+npm install      # 第一次需要，之后不用
+npm run dev      # 浏览器打开 http://localhost:5180
 ```
 
-根目录的游戏用 npm，本目录用 pnpm，两者互不影响。
+跑测试：
+
+```sh
+./test.cmd       # 82 个测试 + 类型检查
+# 或
+npm test
+npm run typecheck
+```
+
+> 第一次 `npm install` 大约十几秒，会装 180 个左右的包。它们都装在 `parent-app/node_modules` 里，不会影响根目录的游戏。
 
 ---
 

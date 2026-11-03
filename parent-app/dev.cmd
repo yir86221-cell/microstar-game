@@ -1,17 +1,35 @@
 @echo off
-rem 起家长端开发服务器。需要 Node.js 20+ 和 pnpm。
-rem 根目录的游戏用 npm，本目录用 pnpm，两者互不影响。
-setlocal
+title MicroStar parent app
 cd /d "%~dp0"
 
-where pnpm >nul 2>nul
+where npm >nul 2>nul
 if errorlevel 1 (
-  echo [x] 没有找到 pnpm。先运行一次：
-  echo     npm install -g pnpm
+  echo.
+  echo  Node.js is required. Install Node 20 or newer:
+  echo    https://nodejs.org
+  echo.
+  pause
   exit /b 1
 )
 
-call pnpm install
-if errorlevel 1 exit /b 1
+if not exist "node_modules" (
+  echo.
+  echo  First run: installing dependencies, this takes a minute...
+  echo.
+  call npm install
+  if errorlevel 1 (
+    echo.
+    echo  npm install failed. Send the red lines to your AI.
+    echo.
+    pause
+    exit /b 1
+  )
+)
 
-call pnpm --filter "@microstar/parent" dev
+echo.
+echo  Starting the dev server...
+echo  Open http://localhost:5180 in your browser.
+echo  Press Ctrl+C to stop.
+echo.
+call npm run dev
+pause
