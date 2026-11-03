@@ -1,0 +1,12 @@
+{
+  "name": "microstar-game-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "微动星瞳儿童端游戏交互 Demo",
+  "scripts": {
+    "dev": "node preview.mjs",
+    "check": "node --check dist/game.js && node --check preview.mjs",
+    "test": "node scripts/check-game.cjs"
+  },
+  "engines": { "node": ">=20" }
+}
