@@ -18,7 +18,7 @@ for(const p of [2,3])for(let l=0;l<4;l++)for(const mode of ['slap','precise','dw
 }
 start(1,0);advance(3000);assert.equal(run('S.round'),0);tap();assert.equal(run('S.round'),1);tap();assert.equal(run('S.round'),1);run('setOverlay("pause")');advance(1600);assert.equal(run('S.reward'),1500);
 start(1,1);assert.match(root.innerHTML,/star-art/);
-start(1,2);for(let i=0;i<3;i++){assert.equal(run('S.targetSlot'),i);tap({dataset:{object:'other'}});assert.equal(run('S.round'),i);tap();advance(1800);}assert.equal(run('S.overlay'),'done');
+start(1,2);for(let i=0;i<3;i++){assert.equal(run('S.targetSlot'),i);tap({dataset:{object:'other'}});assert.equal(run('S.round'),i);tap();advance(1800);}assert.notEqual(run('S.overlay'),'done');
 // Three inputs accelerate three segments; success requires arriving at the actual final endpoint.
 for(const l of [4,7,8]){
  start(1,l);assert.equal(run('E.progress'),0);advance(2000);assert.equal(run('E.progress'),0,'initial observation remains still');
@@ -30,7 +30,7 @@ for(const l of [4,7,8]){
   if(i===2)assert.equal(run('S.overlay'),null,'third tap is not immediate success');
   advance(700);if(i<2){assert.equal(run('S.overlay'),null);assert.equal(run('S.reward'),0);assert.equal(run('E.running'),true);}
  }
- assert.equal(run('E.progress'),1);assert.ok(run('S.reward')>0);advance(1700);assert.equal(run('S.overlay'),'done');
+ assert.equal(run('E.progress'),1);assert.ok(run('S.reward')>0);advance(1700);assert.notEqual(run('S.overlay'),'done');
  run('action("replay")');assert.equal(run('E.progress'),0);assert.equal(run('S.round'),0);
 }
 // Peek reappears at three different spatial positions and never counts hidden taps.
@@ -41,12 +41,14 @@ for(const [i,pos] of [[0,[22,50]],[1,[78,72]],[2,[22,28]]]){
  advance(1100);assert.equal(run('motionHidden()'),false);assert.deepEqual(JSON.parse(JSON.stringify(run('position()'))),{x:pos[0],y:pos[1]});
  tap();assert.equal(run('S.round'),i+1);advance(1700);
 }
-assert.equal(run('S.overlay'),'done');
+assert.notEqual(run('S.overlay'),'done');
 // Rest of P1 still completes normally; colors vary by task without recoloring the original first three.
-for(const l of [3,6,9]){start(1,l,'precise');for(let i=0;i<3;i++){if(run('dynamic()')){run('beginMotion()');advance(100);}tap();advance(1800);}assert.equal(run('S.overlay'),'done');}
+for(const l of [3,6,9]){start(1,l,'precise');for(let i=0;i<3;i++){if(run('dynamic()')){run('beginMotion()');advance(100);}tap();advance(1800);}assert.notEqual(run('S.overlay'),'done');}
 assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].color'),'#ff9637');assert.equal(run('stageOne[5].color'),'#ff70ba');assert.equal(run('stageOne[6].color'),'#b57aff');
 start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
 console.log('PASS: P2/P3 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
 for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
 start(1,4);run("setOverlay('menu');action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
+
+for(const p of [1,2,3]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:3);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
