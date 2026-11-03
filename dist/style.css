@@ -2,3 +2,64 @@
 
 /* Shared, discreet parent entry; keep a usable touch area on every screen. */
 .parent-entry{position:absolute;z-index:30;right:max(12px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:5px;min-height:44px;padding:8px 10px;border:0;border-radius:12px;background:#080808;color:#929292;font-size:12px;font-weight:400;line-height:1.2}.parent-entry svg{width:15px;height:15px}.parent-entry:hover{color:#ddd;background:#191919}.parent-modal h2{color:#eee}.parent-modal p{color:#aaa}.drawer{padding-bottom:72px}
+/* Phase I: a stationary planet centered in a quiet black field. */
+.planet-game .playfield{inset:0;gap:0;pointer-events:none}
+.planet-game .object{pointer-events:auto;width:min(45vw,48svh);height:min(45vw,48svh);padding:0;flex:none}
+.planet-game .object .art{transform:none;transform-origin:center}
+.planet-game .rounds,.planet-game .game-title,.planet-game .task-caption,.planet-game .mode-note{display:none}
+.planet-game .object{isolation:isolate}
+.planet-game .object .art{position:relative;z-index:1}
+.planet-game .object::before{content:"";position:absolute;inset:-40%;z-index:0;border-radius:50%;background:radial-gradient(circle,rgba(var(--planet-rgb,255,230,0),.72) 0%,rgba(var(--planet-rgb,255,230,0),.58) 27%,rgba(var(--planet-rgb,255,230,0),.32) 40%,rgba(var(--planet-rgb,255,230,0),.12) 53%,transparent 70%);opacity:0;pointer-events:none}
+.planet-game .celebrate::before{animation:planet-glow 1.5s ease-in-out both}
+.planet-game .celebrate .art{animation:planet-shake 1.5s ease-out both!important;transform-origin:center}
+.planet-game .celebrate circle{animation:planet-light 1.5s ease-in-out both}
+.planet-game:has(~ .overlay) .celebrate::before,.planet-game:has(~ .overlay) .celebrate .art,.planet-game:has(~ .overlay) .celebrate circle{animation-play-state:paused!important}
+@keyframes planet-glow{0%{opacity:0;transform:scale(.88)}18%,65%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
+@keyframes planet-shake{0%{transform:translate(0,0) scale(1)}10%{transform:translate(-7px,1px) scale(1.025)}20%{transform:translate(7px,-2px) scale(1.04)}30%{transform:translate(-5px,1px) scale(1.035)}40%{transform:translate(4px,0) scale(1.03)}52%{transform:translate(-2px,0) scale(1.02)}65%{transform:translate(0,0) scale(1.015)}100%{transform:translate(0,0) scale(1)}}
+@keyframes planet-light{0%,100%{fill:var(--planet-color,#ffe600)}18%,65%{fill:var(--planet-lit-color,#fff5a3)}}
+@media(prefers-reduced-motion:reduce){.planet-game .celebrate .art{animation:none!important}.planet-game .celebrate::before{animation:none;opacity:1}.planet-game .celebrate circle{animation:none;fill:var(--planet-lit-color,#fff5a3)}}
+@media(orientation:portrait){.planet-game .object{width:min(64vw,48svh);height:min(64vw,48svh)}}
+
+/* Phase I third task: fixed left-to-right colors with one guided target. */
+.color-game .playfield{gap:3%;padding:0 5%}
+.color-game .object,.color-game .object.distractor{flex:none;width:min(26vw,32svh);height:min(26vw,32svh);max-width:none;max-height:none;padding:0;opacity:.4}
+.color-game .object.target{opacity:1}
+.color-game .guided::before{opacity:.8}
+.color-game .guided circle{fill:var(--planet-lit-color)}
+@media(orientation:portrait){.color-game .object,.color-game .object.distractor{width:26vw;height:26vw}}
+/* P1 additions only. Original P2/P3 layout remains unchanged. */
+#app{container-type:size}
+.two-stages{grid-template-columns:repeat(2,minmax(0,1fr));inset:24% 17% 15%;gap:10%}
+.expanded-levels{flex:none;grid-template-columns:repeat(2,minmax(0,1fr));min-height:0}
+.expanded-levels .preview{min-height:130px;flex:none}
+.expanded-levels .preview-art{height:110px;min-height:85px;flex:none}
+.expanded-levels .preview-label{font-size:17px;font-weight:500}
+.drawer:has(.expanded-levels){width:min(88%,920px);gap:14px;overscroll-behavior:contain}
+.menu-tools{display:flex;justify-content:space-between;gap:8px}
+.menu-tools .small-btn{background:#262626;color:#d0d0d0}
+.advanced-title{position:absolute;top:9%;left:35%;right:8%;margin:0;text-align:right;color:#aaa;font-size:clamp(13px,2cqw,21px);font-weight:400}
+.advanced-game .topbar{right:auto;flex-wrap:wrap;gap:10px;max-width:75%;inset:20px auto auto 24px}
+.advanced-game .topbar .small-btn{font-size:14px}
+.advanced-game .motion-start{color:#ffe600;border:1px solid #514a00}
+.task-content{position:absolute;inset:23% 4% 23%}
+.task-stage{position:absolute;inset:0}
+.moving-anchor{position:absolute;left:var(--x,50%);top:var(--y,50%);width:min(32cqw,39cqh);aspect-ratio:1;transform:translate(-50%,-50%) scale(var(--scale,1))}
+.task-object.object{width:100%;height:100%;max-width:none;padding:0;isolation:isolate;display:block;flex:none}
+.task-object .art{position:relative;z-index:1;transform-origin:center}
+.task-object::before{content:"";position:absolute;inset:-30%;pointer-events:none;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--task-color,#ffe600) 65%,transparent),transparent 68%);opacity:0}
+.task-reward::before{animation:task-halo 1.5s ease-in-out both}
+.task-reward .art{animation:task-jolt 1.5s ease-out both}
+.car-roll .art{animation:car-response 1.5s ease-out both}
+.car-roll .wheel-spin{transform-box:fill-box;transform-origin:center;animation:wheel-turn 1.5s ease-out both}
+.advanced-game:has(~ .overlay) *, .advanced-game:has(~ .overlay) *::before{animation-play-state:paused!important}
+.advanced-hint{position:absolute;bottom:12%;left:7%;right:7%;margin:0;text-align:center;color:#bdbdbd;font-size:clamp(15px,2.4cqw,25px);font-weight:400}
+.advanced-hint.feedback{color:#ffe600}
+.advanced-mode-note{position:absolute;bottom:5%;left:5%;right:5%;margin:0;text-align:center;color:#888;font-size:clamp(12px,1.7cqw,17px)}
+.task-object[hidden]{display:none}
+@keyframes task-halo{0%,100%{opacity:0}20%,65%{opacity:1}}
+@keyframes task-jolt{0%,100%{transform:translate(0) scale(1)}12%{transform:translateX(-5px) scale(1.025)}24%{transform:translateX(5px) scale(1.04)}36%{transform:translateX(-3px) scale(1.035)}50%{transform:translateX(2px) scale(1.02)}70%{transform:translate(0) scale(1.015)}}
+@keyframes car-response{0%,100%{transform:translateX(0)}25%{transform:translateX(7%)}65%{transform:translateX(12%)}}
+@keyframes wheel-turn{to{transform:rotate(130deg)}}
+@media(max-height:560px){.advanced-game .topbar{inset:10px auto auto 14px;gap:7px}.expanded-levels .preview-art{height:80px;min-height:0}.expanded-levels .preview{min-height:110px}.advanced-title{top:10%}.advanced-game .topbar .small-btn{font-size:12px;padding:8px}.drawer:has(.expanded-levels){gap:12px}.task-content{inset:23% 4% 25%}}
+@media(orientation:portrait){.advanced-game .topbar{max-width:95%}.advanced-title{top:16%;left:5%;right:5%;text-align:center}.task-content{inset:26% 3% 26%}.moving-anchor{width:min(40cqw,32cqh)}.advanced-hint{bottom:17%;font-size:19px}.advanced-mode-note{bottom:8%;font-size:13px}.two-stages{inset:25% 7% 20%}.choice-object{width:min(24cqw,22cqh);height:min(24cqw,22cqh)}.expanded-levels .preview-label{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.task-reward .art,.car-roll .art,.car-roll .wheel-spin,.choice-reward .art{animation:none!important}.task-reward::before{animation:none;opacity:1}}

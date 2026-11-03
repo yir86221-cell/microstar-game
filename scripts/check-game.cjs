@@ -1,34 +1,52 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
-const listeners={},winListeners={};
-const root={innerHTML:'',addEventListener:(t,f)=>listeners[t]=f};
-const context={document:{querySelector:s=>s==='#app'?root:null,querySelectorAll:()=>[],addEventListener:()=>{},hidden:false},window:{addEventListener:(t,f)=>winListeners[t]=f},requestAnimationFrame:()=>{},console};
-vm.createContext(context);
-vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../dist/game.js'),'utf8'),context);
-const run=s=>vm.runInContext(s,context);
-assert.match(root.innerHTML,/点击或拍击来开始吧/);
-run('phaseView()');assert.match(root.innerHTML,/认识物品/);
-run('S.phase=2; startLevel(1)');assert.match(root.innerHTML,/让小车开起来/);assert.equal((root.innerHTML.match(/data-object=/g)||[]).length,2);
-run('setOverlay("menu")');assert.match(root.innerHTML,/preview-art/);run('respond()');assert.equal(run('S.round'),0,'menu pauses input');
-run('setOverlay(null); respond()');assert.equal(run('S.round'),1);run('respond()');assert.equal(run('S.round'),1,'animation blocks repeat taps');
-run('setOverlay("pause"); tick(100)');assert.equal(run('S.reward'),1500,'pause freezes reward timer');
-run('S.mode="precise"; startLevel(0)');
-listeners.pointerdown({button:0,target:{closest:s=>s==='[data-object]'?{dataset:{object:'other'}}:null}});assert.equal(run('S.round'),0,'wrong target ignored');
-listeners.pointerdown({button:0,target:{closest:s=>s==='[data-object]'?{dataset:{object:'target'}}:null}});assert.equal(run('S.round'),1,'correct target responds');
-run('S.mode="dwell"; startLevel(0)');
-const target={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};
-listeners.pointerdown({button:0,pointerId:7,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});
-assert.equal(run('S.round'),0);run('tick(170)');assert.ok(run('S.hold.elapsed')>0);
-winListeners.pointermove({pointerId:7,clientX:110,clientY:40});assert.equal(run('S.hold'),null,'moving out cancels hold');
-listeners.pointerdown({button:0,pointerId:8,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});
-for(let t=240;t<1600;t+=70)run(`tick(${t})`);assert.equal(run('S.round'),1,'1.2 second contact succeeds');
-run('S.phase=3; startLevel(3)');assert.equal((root.innerHTML.match(/data-object=/g)||[]).length,3);
-run('S.mode="slap"');for(let i=0;i<3;i++){run('respond()');for(let t=0;t<1600;t+=70)run(`tick(${2000+i*2000+t})`);}assert.equal(run('S.overlay'),'done','three responses complete level');
-run('home()');assert.match(root.innerHTML,/点击或拍击来开始吧/);assert.equal(run('S.overlay'),null);
-console.log('PASS: navigation, stage layouts, menu pause, repeated input, precise selection, hold cancellation/completion, level completion.');
+function environment(source){const listeners={},wins={},root={innerHTML:'',addEventListener:(t,f)=>listeners[t]=f};const c={document:{querySelector:s=>s==='#app'?root:null,querySelectorAll:()=>[],addEventListener:()=>{},hidden:false},window:{addEventListener:(t,f)=>wins[t]=f},requestAnimationFrame:()=>{},console};vm.createContext(c);vm.runInContext(source,c);return{root,listeners,wins,run:s=>vm.runInContext(s,c)};}
+const env=environment(fs.readFileSync(require('node:path').join(__dirname,'../dist/game.js'),'utf8')), {root,run,listeners,wins}=env;
+let time=0;function advance(ms){for(let n=0;n<ms;n+=50){time+=50;run(`tick(${time})`);}}
+function start(p,l,mode='slap'){run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);}
+const node={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};
+function tap(target=node,id=1){listeners.pointerdown({button:0,pointerId:id,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});}
+assert.match(root.innerHTML,/点击或拍击来开始吧/);run('phaseView()');assert.match(root.innerHTML,/Phase III/);
+for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:4);}
+// Compare the restored P2/P3 with actual historical source, not a hand-written replica.
+const old=environment(fs.readFileSync(require('node:path').join(__dirname,'fixtures/legacy-game.js'),'utf8'));
+const normalize=s=>s.replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
+for(const p of [2,3])for(let l=0;l<4;l++)for(const mode of ['slap','precise','dwell']){
+ start(p,l,mode);old.run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);
+ assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),`P${p}.${l+1} game restored`);
+ run('setOverlay("menu")');old.run('setOverlay("menu")');assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),'original menu restored');
+ run('setOverlay(null);respond()');old.run('setOverlay(null);respond()');assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),'original feedback restored');
+}
+start(1,0);advance(3000);assert.equal(run('S.round'),0);tap();assert.equal(run('S.round'),1);tap();assert.equal(run('S.round'),1);run('setOverlay("pause")');advance(1600);assert.equal(run('S.reward'),1500);
+start(1,1);assert.match(root.innerHTML,/star-art/);
+start(1,2);for(let i=0;i<3;i++){assert.equal(run('S.targetSlot'),i);tap({dataset:{object:'other'}});assert.equal(run('S.round'),i);tap();advance(1800);}assert.equal(run('S.overlay'),'done');
+// Three inputs accelerate three segments; success requires arriving at the actual final endpoint.
+for(const l of [4,7,8]){
+ start(1,l);assert.equal(run('E.progress'),0);advance(2000);assert.equal(run('E.progress'),0,'initial observation remains still');
+ for(let i=0;i<3;i++){
+  tap();assert.equal(run('S.round'),i+1);assert.equal(run('S.reward'),0,'a tap does not freeze the object');assert.equal(run('E.running'),true);
+  const before=run('E.progress');advance(350);assert.ok(run('E.progress')>before,'object moves after tap');
+  tap();assert.equal(run('S.round'),i+1,'tap during the same acceleration cannot skip segments');
+  const frozen=run('E.progress');run('setOverlay("pause")');advance(600);assert.equal(run('E.progress'),frozen);run('setOverlay(null)');
+  if(i===2)assert.equal(run('S.overlay'),null,'third tap is not immediate success');
+  advance(700);if(i<2){assert.equal(run('S.overlay'),null);assert.equal(run('S.reward'),0);assert.equal(run('E.running'),true);}
+ }
+ assert.equal(run('E.progress'),1);assert.ok(run('S.reward')>0);advance(1700);assert.equal(run('S.overlay'),'done');
+ run('action("replay")');assert.equal(run('E.progress'),0);assert.equal(run('S.round'),0);
+}
+// Peek reappears at three different spatial positions and never counts hidden taps.
+start(1,5);run('beginMotion()');
+for(const [i,pos] of [[0,[22,50]],[1,[78,72]],[2,[22,28]]]){
+ if(i===0)advance(1500);else advance(200);
+ assert.equal(run('motionHidden()'),true);tap();assert.equal(run('S.round'),i);
+ advance(1100);assert.equal(run('motionHidden()'),false);assert.deepEqual(JSON.parse(JSON.stringify(run('position()'))),{x:pos[0],y:pos[1]});
+ tap();assert.equal(run('S.round'),i+1);advance(1700);
+}
+assert.equal(run('S.overlay'),'done');
+// Rest of P1 still completes normally; colors vary by task without recoloring the original first three.
+for(const l of [3,6,9]){start(1,l,'precise');for(let i=0;i<3;i++){if(run('dynamic()')){run('beginMotion()');advance(100);}tap();advance(1800);}assert.equal(run('S.overlay'),'done');}
+assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].color'),'#ff9637');assert.equal(run('stageOne[5].color'),'#ff70ba');assert.equal(run('stageOne[6].color'),'#b57aff');
+start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
+console.log('PASS: P2/P3 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
-// Parent entry is global, pauses play and returns to the exact previous screen.
-for(const page of ['home','phases','game']){run("S.page='"+page+"'; S.overlay=null; render()");assert.equal((root.innerHTML.match(/class="parent-entry"/g)||[]).length,1);run("action('parent')");assert.equal(run('S.overlay'),'parent');run("action('parent-return')");assert.equal(run('S.page'),page);assert.equal(run('S.overlay'),null);}
-for(const overlay of ['menu','pause','done']){run("S.page='game'; S.overlay='"+overlay+"'; render(); action('parent')");winListeners.keydown({key:'Escape',preventDefault:()=>{}});assert.equal(run('S.overlay'),overlay,'return restores prior overlay');}
-run("startLevel(0); respond(); action('parent'); tick(20000)");assert.equal(run('S.reward'),1500);assert.equal(run('S.round'),1);run("action('parent-return')");assert.equal(run('S.round'),1);
-run("home(); action('parent')");listeners.click({target:{closest:()=>null},detail:1});assert.equal(run('S.page'),'home');assert.equal(run('S.overlay'),'parent');
-console.log('PASS: parent entry on every page, return navigation, overlay restoration and paused timers.');
+for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
+start(1,4);run("setOverlay('menu');action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
