@@ -1,0 +1,18 @@
+name: 修改建议
+description: 提出一项可以认领的游戏修改
+title: "[修改] "
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: 想改什么
+      description: 说明具体页面、关卡或操作，以及为什么需要修改
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 怎样算完成
+      description: 写出可以检查的结果，必要时附参考图
+    validations:
+      required: true
