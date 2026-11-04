@@ -3,7 +3,7 @@ import { summarize, TrialRunner } from "@microstar/core-domain";
 import { h } from "../lib/dom.js";
 import { device } from "../lib/device.js";
 import { pct, secs } from "../lib/format.js";
-import { stageAssets, store, type SessionRecord } from "../lib/store.js";
+import { PHYSICAL_LEVEL, store, type SessionRecord } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
 
 const sleep = (ms: number): Promise<void> =>
@@ -21,7 +21,7 @@ const sleep = (ms: number): Promise<void> =>
 export const render: ScreenRenderer = (ctx) => {
   const plan = store.state.plan;
   const loop = plan.loop;
-  const assets = stageAssets();
+  
   const runner = new TrialRunner({ judgeWindowMs: loop.lightOnMs });
 
   let stopped = false;
@@ -146,10 +146,13 @@ export const render: ScreenRenderer = (ctx) => {
         startedAt: sessionStart,
         endedAt: Date.now(),
         stage: 4,
+        levelId: PHYSICAL_LEVEL.id,
+        levelName: PHYSICAL_LEVEL.name,
         mode: "physical",
         trials,
         litMinutes,
         brightness: plan.brightness,
+        origin: "parent",
       };
       store.update((s) => {
         s.sessions.push(record);
@@ -210,8 +213,11 @@ export const render: ScreenRenderer = (ctx) => {
       await device.connect();
     }
     if (!device.isConnected) {
-      titleEl.textContent = "连不上提示灯";
-      subEl.textContent = "先插上充电 10 分钟再试 · 确认没在充电 · 靠近一点";
+      const support = device.bluetoothSupport;
+      titleEl.textContent = support.available ? "连不上提示灯" : "这台设备连不了蓝牙";
+      subEl.textContent = support.available
+        ? "先插上充电 10 分钟再试 · 确认没在充电 · 靠近一点"
+        : support.message;
       actionRow.replaceChildren(
         h("button", { class: "btn ghost grow", onClick: () => location.reload() }, "重试"),
         h("button", { class: "btn ghost grow", onClick: () => ctx.navigate("train") }, "返回"),
@@ -219,8 +225,14 @@ export const render: ScreenRenderer = (ctx) => {
       return;
     }
 
-    await device.selfTest();
-    titleEl.textContent = `准备开始 · ${assets.map((a) => a.name).join(" / ") || "实物"}`;
+    // 没有真蓝牙时会静默退到模拟设备，这里必须说清楚，别让人以为连上了真灯
+    if (device.isMock) {
+      titleEl.textContent = "模拟设备（不是真灯）";
+      subEl.textContent = device.bluetoothSupport.message;
+    } else {
+      await device.selfTest();
+      titleEl.textContent = "准备开始 · 贴了灯的实物";
+    }
     subEl.textContent = `共 ${loop.rounds} 轮，每轮亮 ${loop.lightOnMs / 1000} 秒、间隔 ${loop.gapMs / 1000} 秒`;
     actionRow.replaceChildren(
       h(

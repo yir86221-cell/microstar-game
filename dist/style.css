@@ -64,8 +64,20 @@
 @media(orientation:portrait){.advanced-game .topbar{max-width:95%}.advanced-title{top:16%;left:5%;right:5%;text-align:center}.task-content{inset:26% 3% 26%}.moving-anchor{width:min(40cqw,32cqh)}.advanced-hint{bottom:17%;font-size:19px}.advanced-mode-note{bottom:8%;font-size:13px}.two-stages{inset:25% 7% 20%}.choice-object{width:min(24cqw,22cqh);height:min(24cqw,22cqh)}.expanded-levels .preview-label{font-size:15px}}
 @media(prefers-reduced-motion:reduce){.task-reward .art,.car-roll .art,.car-roll .wheel-spin,.choice-reward .art{animation:none!important}.task-reward::before{animation:none;opacity:1}}
 
-.parent-overlay{z-index:40;background:#0a0a0c}.parent-shell{display:flex;flex-direction:column;width:100%;height:100%;min-height:0}.parent-toolbar{display:flex;align-items:center;justify-content:space-between;flex:none;min-height:52px;padding:max(6px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 6px max(16px,env(safe-area-inset-left));background:#171717;border-bottom:1px solid #333;font-size:14px;color:#aaa}.parent-toolbar .small-btn{min-height:44px;color:#ffe600}.parent-frame{flex:1;width:100%;min-height:0;border:0;background:#0a0a0c}
+.parent-overlay{z-index:40;background:#0a0a0c}.parent-shell{display:flex;flex-direction:column;width:100%;height:100%;min-height:0}.parent-toolbar{display:flex;align-items:center;justify-content:space-between;flex:none;min-height:52px;padding:max(6px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 6px max(16px,env(safe-area-inset-left));background:#171717;border-bottom:1px solid #333;font-size:14px;color:#aaa}.parent-toolbar .small-btn{min-height:44px;color:#a8d5c8}.parent-frame{flex:1;width:100%;min-height:0;border:0;background:#0a0a0c}
+
+/* 家长入口：长按触发，按住时给出明确的视觉反馈 */
+.parent-entry.holding{color:#ffe600;background:#232323;box-shadow:0 0 0 2px #ffe60033}
+.parent-entry{transition:background .15s,color .15s,box-shadow .15s}
+
+/* 家长端：居中的弹窗，背后保留儿童端画面（游戏在打开时已暂停） */
+.parent-overlay{display:flex;align-items:center;justify-content:center;padding:clamp(10px,3.5vmin,48px);background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(10px) saturate(.85);backdrop-filter:blur(10px) saturate(.85)}
+.parent-shell{width:min(100%,860px);height:100%;max-height:100%;border-radius:24px;border:1px solid #2b2b2b;background:#0a0a0c;box-shadow:0 40px 120px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.05);overflow:hidden}
+.parent-toolbar{padding:0 18px;min-height:56px;border-bottom:1px solid #262626;background:#111}
+.parent-frame{border-radius:0 0 23px 23px}
+@media (max-width:640px),(max-height:520px){.parent-overlay{padding:8px}.parent-shell{border-radius:16px}.parent-frame{border-radius:0 0 15px 15px}}
+.object .art,.moving-anchor .art{zoom:var(--target-scale,1)}
+
 
 /* Soft controls keep the child playfield black and uncluttered. */
-.icon-btn,.close-btn{border-radius:50%}.drawer{background:#15141b;border-radius:0 36px 36px 0;gap:22px}.preview{border:0;border-radius:30px;background:#050505;box-shadow:none;padding:7px}.preview.selected{border:0;background:#35301a}.preview-label{background:transparent;padding:13px 7px;color:#eee}.selected-mark{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:#ffe600;color:#201c00;font-size:18px}.mode-chip{border:0;border-radius:999px;background:#302d37;padding:13px 10px}.primary,.secondary{border:0;border-radius:999px}.secondary{background:#302d37}.modal{border:0;border-radius:36px}.parent-toolbar{border:0;background:#17141f;border-radius:0 0 24px 24px}.parent-toolbar .small-btn{border-radius:999px;background:#30253e;color:#e5d5ff;padding:10px 20px}.parent-entry{border-radius:999px}.object .art{zoom:var(--target-scale,1)}.moving-anchor .art{zoom:var(--target-scale,1)}
-@media(max-height:560px){.drawer{gap:10px;border-radius:0 26px 26px 0}.preview{border-radius:22px}.preview-label{padding:6px}.mode-chip{padding:7px}.primary{padding:10px}}
+.icon-btn,.close-btn{border-radius:50%}.drawer{background:#15141b;border-radius:0 36px 36px 0;gap:22px}.preview{border:0;border-radius:30px;background:#050505;box-shadow:none}.preview.selected{box-shadow:0 0 0 3px var(--yellow)}.mode-chip{border:0;border-radius:999px;background:#222}.mode-chip.selected{background:var(--yellow)}@media(max-height:560px){.drawer{gap:10px;border-radius:0 26px 26px 0}.preview{border-radius:22px}.preview-label{padding:6px}.mode-chip{padding:7px}.primary{padding:10px}}

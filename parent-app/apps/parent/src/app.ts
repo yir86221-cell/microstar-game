@@ -1,4 +1,4 @@
-import { clear, h } from "./lib/dom.js";
+﻿import { clear, h } from "./lib/dom.js";
 import { icon } from "./lib/icons.js";
 import { device } from "./lib/device.js";
 import { store } from "./lib/store.js";
@@ -8,6 +8,7 @@ import { render as data } from "./screens/data.js";
 import { render as deviceScreen } from "./screens/device.js";
 import { render as profile } from "./screens/profile.js";
 import { render as plan } from "./screens/plan.js";
+import { render as records } from "./screens/records.js";
 import { render as child } from "./screens/child.js";
 import { render as physical } from "./screens/physical.js";
 import { render as debug } from "./screens/debug.js";
@@ -18,6 +19,7 @@ const SCREENS: Record<string, ScreenRenderer> = {
   device: deviceScreen,
   profile,
   plan,
+  records,
   child,
   physical,
   debug,
@@ -34,12 +36,13 @@ const TABS = [
 const DEFAULT_ROUTE = "train";
 
 /** 这些页面占满整屏，不显示底部标签栏 */
-const FULL_SCREEN = new Set(["child", "physical", "plan", "debug"]);
+const FULL_SCREEN = new Set(["child", "physical", "plan", "records", "debug"]);
 
 let view: HTMLElement;
 let tabbar: HTMLElement;
 let cleanup: (() => void) | null = null;
 let pending = false;
+let lastRenderedRoute = "";
 
 function currentRoute(): string {
   const raw = location.hash.replace(/^#\/?/, "");
@@ -88,9 +91,11 @@ function render(): void {
 
   buildTabbar(id);
 
-  if (!navigator.userAgent.includes("jsdom")) {
+  // 只在换页时回到顶部。勾选复选框、拖动滑杆这类状态更新不该让页面跳起来。
+  if (id !== lastRenderedRoute && !navigator.userAgent.includes("jsdom")) {
     window.scrollTo(0, 0);
   }
+  lastRenderedRoute = id;
 }
 
 function buildTabbar(active: string): void {

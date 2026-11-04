@@ -10,9 +10,19 @@ export const render: ScreenRenderer = (ctx) => {
   const policy = resolveLightPolicy(state.child);
   const battery = estimateRemaining(state.usage, { brightness: state.plan.brightness });
   const hasPhysicalData = state.usage.length > 0;
+  const support = device.bluetoothSupport;
+  const showsMock = device.isMock || !support.available;
 
   const statusCard = card(
     cardTitle("提示灯", device.kind === "mock" ? "模拟设备" : undefined),
+    showsMock
+      ? h(
+          "div",
+          { class: "warn-box" },
+          h("strong", null, "这台设备连不了蓝牙"),
+          h("p", null, support.available ? "已切换到模拟设备，不是真实硬件。" : support.message),
+        )
+      : null,
     h(
       "div",
       { class: `device-status ${device.isConnected ? "ok" : "off"}` },

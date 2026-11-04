@@ -7,7 +7,7 @@
     "dev": "node preview.mjs",
     "check": "node --check dist/game.js && node --check preview.mjs",
     "test": "node scripts/check-game.cjs",
-    "build:parent": "pnpm --dir parent-app run build:parent && node scripts/package-parent.cjs"
+    "build:parent": "node scripts/build-parent.cjs && node scripts/package-parent.cjs"
   },
   "engines": {
     "node": ">=20"
