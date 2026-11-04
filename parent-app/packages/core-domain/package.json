@@ -9,6 +9,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@microstar/core-protocol": "workspace:*"
+    "@microstar/core-protocol": "*"
   }
 }

@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 const app=document.querySelector('#app');
 const svg=(content,cls='')=>`<svg class="${cls}" viewBox="0 0 320 320" aria-hidden="true">${content}</svg>`;
 const arts={
@@ -24,7 +24,7 @@ function currentLevel(){const l=phaseLevels()[S.level];if(l.id!=='colors')return
 const phases=[{id:1,art:'circle',name:'发现目标'},{id:2,art:'horse',name:'认识物品'},{id:3,art:'cup',name:'生活探索'}];
 const modes=[{id:'slap',name:'拍击',description:'触碰屏幕任意位置即可回应'},{id:'precise',name:'精准点击',description:'点击目标物体，触碰其他位置不会触发'},{id:'dwell',name:'悬停',description:'接触目标并停留 1.2 秒，无需抬手'}];
 const S={page:'home',phase:1,level:0,mode:'slap',round:0,overlay:null,reward:0,hold:null,toast:'',toastRemaining:0,targetSlot:0};
-let parentPreviousOverlay=null;
+let parentPreviousOverlay=null,parentHoldStart=0,parentHoldMs=0;
 let gameStartedAt=0,gamePausedAt=0,gamePausedTotal=0;
 let audio=null,soundOn=null,lastTick=0;
 const icon={pause:'<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>',menu:'<svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>',back:'<svg viewBox="0 0 24 24"><path d="m15 4-8 8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>'};
@@ -32,8 +32,8 @@ function sound(){if(!(soundOn??(S.phase===1||isPig()||isStory())))return;try{aud
 let framePending=false;
 function requestTick(){if(framePending||S.page!=='game'||S.overlay||!(S.hold||S.reward||S.toastRemaining||needsTaskTick()||needsPigTick()||needsStoryTick()))return;framePending=true;requestAnimationFrame(t=>{framePending=false;if(!lastTick)lastTick=t;tick(t);});}
 function endHold(){S.hold=null;document.querySelector('.dwell-ring')?.remove();}
-function setOverlay(value){if(S.page==='game'){if(value&&!S.overlay)gamePausedAt=Date.now();if(!value&&S.overlay&&gamePausedAt){gamePausedTotal+=Date.now()-gamePausedAt;gamePausedAt=0;}}endHold();Cup.drag=null;S.overlay=value;render();}
-function startLevel(index=S.level){gameStartedAt=Date.now();gamePausedAt=0;gamePausedTotal=0;endHold();S.page='game';S.level=index;S.round=0;S.reward=0;S.overlay=null;S.targetSlot=0;S.toast='';resetTask();resetPig();resetStory();resetCup();render();}
+function setOverlay(value){if(S.page==='game'){if(value&&!S.overlay)gamePausedAt=Date.now();if(!value&&S.overlay&&gamePausedAt){const pauseDelta=Date.now()-gamePausedAt;gamePausedTotal+=pauseDelta;roundStartAt+=pauseDelta;gamePausedAt=0;}}endHold();Cup.drag=null;S.overlay=value;render();}
+function startLevel(index=S.level){gameStartedAt=Date.now();gamePausedAt=0;gamePausedTotal=0;endHold();S.page='game';S.level=index;S.round=0;S.reward=0;S.overlay=null;S.targetSlot=0;S.toast='';resetTask();resetPig();resetStory();resetCup();recStart();render();}
 function tell(message){S.toast=message;S.toastRemaining=1800;const n=document.querySelector('.toast');if(n)n.textContent=message;}
 function home(){endHold();Object.assign(S,{page:'home',overlay:null,reward:0});render();}
 function phaseView(){endHold();Object.assign(S,{page:'phases',overlay:null,reward:0});render();}
@@ -48,14 +48,14 @@ function parentView(){return '<div class="overlay parent-overlay"><section class
 function openParent(){if(S.overlay==='parent')return;parentPreviousOverlay=S.overlay;setOverlay('parent');}
 function closeParent(){setOverlay(parentPreviousOverlay);parentPreviousOverlay=null;requestAnimationFrame(()=>document.querySelector('.parent-entry')?.focus({preventScroll:true}));}
 function render(){requestTick();app.innerHTML=(S.page==='home'?homeView():S.page==='phases'?phasesView():gameView())+(S.overlay==='menu'?menuView():S.overlay==='pause'?pauseView():S.overlay==='parent'?parentView():'')+parentEntry();if(S.overlay){requestAnimationFrame(()=>document.querySelector('[role="dialog"] button')?.focus({preventScroll:true}));}}
-function respond(){if(isCup()){endHold();Cup.drag=null;turnCup(.5);return;}if(isStory())return triggerStory();if(isPig())return triggerPig();if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();S.reward=1500;S.round++;S.toast='';sound();render();}
-function action(name){switch(name){case'cup-left':turnCup(-.5);break;case'cup-right':turnCup(.5);break;case'cup-up':turnCup(0,-.25);break;case'cup-reset':resetCup();paintCup();break;case'parent':openParent();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':if((isPig()&&Pig.phase==='complete')||(isStory()&&Story.done))startLevel();else setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1||isPig()||isStory()));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
+function respond(){if(isCup()){endHold();Cup.drag=null;turnCup(.5);return;}if(isStory())return triggerStory();if(isPig())return triggerPig();if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();S.reward=1500;recRound(Date.now()-roundStartAt);S.round++;S.toast='';sound();render();}
+function action(name){switch(name){case'cup-left':turnCup(-.5);break;case'cup-right':turnCup(.5);break;case'cup-up':turnCup(0,-.25);break;case'cup-reset':resetCup();paintCup();break;case'parent':if(parentHoldMs<900)return;parentHoldMs=0;openParent();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':if((isPig()&&Pig.phase==='complete')||(isStory()&&Story.done))startLevel();else setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1||isPig()||isStory()));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
 app.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.action){action(b.dataset.action);return;}if(S.overlay==='parent')return;if(b?.dataset.phase){S.phase=Number(b.dataset.phase);startLevel(0);return;}if(b?.dataset.level!==undefined){endHold();startLevel(Number(b.dataset.level));setOverlay('menu');return;}if(b?.dataset.mode){endHold();S.mode=b.dataset.mode;startLevel();setOverlay('menu');return;}if(S.page==='home'){phaseView();return;}if(isAdvanced()&&e.detail===0&&S.page==='game'&&!S.overlay){advancedInput(b?.dataset.object?b:null,null);return;}if(e.detail===0&&b?.dataset.object&&S.page==='game'&&!S.overlay){if((S.mode==='slap'&&currentLevel().id!=='colors')||b.dataset.object==='target')respond();}});
 app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isCup()){cupInput(obj,e);return;}if(isStory()){storyInput(obj,e);return;}if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
 window.addEventListener('pointermove',e=>{if(!S.hold||e.pointerId!==S.hold.id)return;const r=S.hold.node.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)endHold();});
 window.addEventListener('pointerup',e=>{if(S.hold?.id===e.pointerId)endHold();});window.addEventListener('pointercancel',endHold);window.addEventListener('blur',()=>{if(S.page==='game'&&!S.overlay)setOverlay('pause');else endHold();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.page==='game'&&!S.overlay)setOverlay('pause');});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();if(S.overlay==='parent'){closeParent();return;}if(S.page==='game')setOverlay(S.overlay===null?'pause':null);else if(S.page==='phases')home();return;}if(S.overlay&&e.key==='Tab'){const controls=[...document.querySelectorAll('[role="dialog"] button')];if(!controls.length)return;const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
-function tick(t){const dt=Math.min(t-lastTick,70);lastTick=t;if(S.page==='game'&&!S.overlay){advanceStory(dt);advancePig(dt);advanceTask(dt);if(S.hold){S.hold.elapsed+=dt;document.querySelector('.dwell-ring')?.style.setProperty('--progress',`${Math.min(360,S.hold.elapsed/1200*360)}deg`);if(S.hold.elapsed>=1200)respond();}if(S.reward){S.reward=Math.max(0,S.reward-dt);if(S.reward===0){if(S.round>=requiredResponses()){saveGameRecord();if(S.level<phaseLevels().length-1)startLevel(S.level+1);else if(S.phase<3){S.phase++;startLevel(0);}else setOverlay('menu');}else {if(isAdvanced())resetRound();S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);}render();}}if(S.toastRemaining){S.toastRemaining=Math.max(0,S.toastRemaining-dt);if(!S.toastRemaining){S.toast='';const n=document.querySelector('.toast');if(n)n.textContent='';}}}if(S.page==='game'&&!S.overlay&&(S.hold||S.reward||S.toastRemaining||needsTaskTick()||needsPigTick()||needsStoryTick()))requestTick();else lastTick=0;}
+function tick(t){const dt=Math.min(t-lastTick,70);lastTick=t;if(S.page==='game'&&!S.overlay){advanceStory(dt);advancePig(dt);advanceTask(dt);if(S.hold){S.hold.elapsed+=dt;document.querySelector('.dwell-ring')?.style.setProperty('--progress',`${Math.min(360,S.hold.elapsed/1200*360)}deg`);if(S.hold.elapsed>=1200)respond();}if(S.reward){S.reward=Math.max(0,S.reward-dt);if(S.reward===0){if(S.round>=requiredResponses()){saveGameRecord();if(S.level<phaseLevels().length-1)startLevel(S.level+1);else if(S.phase<3){S.phase++;startLevel(0);}else setOverlay('menu');}else {roundStartAt=Date.now();if(isAdvanced())resetRound();S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);}render();}}if(S.toastRemaining){S.toastRemaining=Math.max(0,S.toastRemaining-dt);if(!S.toastRemaining){S.toast='';const n=document.querySelector('.toast');if(n)n.textContent='';}}}if(S.page==='game'&&!S.overlay&&(S.hold||S.reward||S.toastRemaining||needsTaskTick()||needsPigTick()||needsStoryTick()))requestTick();else lastTick=0;}
 
 // P1-only additions. P2/P3 use the original game, assets, menus and task lists.
 const p1Task=(id,name,target,kind,focus,color)=>({id,name,target,kind,focus,color,action:'和'+target+'互动',feedback:'做得好！'});
@@ -71,8 +71,8 @@ const E={easy:false,running:false,started:false,elapsed:0,progress:0,boost:false
 function isAdvanced(){return S.phase===1&&S.level>=3;}
 function isBoost(){return isAdvanced()&&['growth','vertical','drift','path'].includes(currentLevel().kind);}
 function dynamic(){return isAdvanced()&&['growth','vertical','peek','drift','path'].includes(currentLevel().kind);}
-function resetTask(){Object.assign(E,{running:false,started:false,elapsed:0,progress:0,boost:false,boostTime:0,boostFrom:0,boostTo:0});lastTick=0;}
-function resetRound(){resetTask();if(currentLevel().kind==='peek'&&S.round>0){E.running=true;E.started=true;E.elapsed=1200;}}
+function resetTask(){Object.assign(E,{running:false,started:false,elapsed:0,progress:0,boost:false,boostTime:0,boostFrom:0,boostTo:0,roundElapsed:0});lastTick=0;}
+function resetRound(){resetTask();roundStartAt=Date.now();if(currentLevel().kind==='peek'&&S.round>0){E.running=true;E.started=true;E.elapsed=1200;}}
 function needsTaskTick(){return isAdvanced()&&E.running;}
 function roundIndex(){return Math.min(2,Math.max(0,S.round-(S.reward?1:0)));}
 function shapeName(){return ['圆形','正方形','三角形'][roundIndex()];}
@@ -116,14 +116,14 @@ function gameView(){return isCup()?cupView():isStory()?storyView():isPig()?pigVi
 function beginMotion(){if(!dynamic()||S.overlay||S.reward||E.started)return;E.started=true;E.running=true;E.elapsed=0;lastTick=0;render();}
 function boostStep(){
  if(!isBoost()||S.page!=='game'||S.overlay||S.reward||E.boost||S.round>=3)return;
- endHold();E.started=true;E.running=true;E.boost=true;E.boostTime=0;E.boostFrom=E.progress;S.round++;E.boostTo=S.round/3;S.toast='';sound();render();
+ endHold();E.started=true;E.running=true;E.boost=true;E.boostTime=0;E.boostFrom=E.progress;recRound(Date.now()-roundStartAt);S.round++;E.boostTo=S.round/3;S.toast='';sound();render();
 }
 function respondAdvanced(){
  if(S.page!=='game'||S.overlay||S.reward)return;
  if(isBoost()){boostStep();return;}
  if(motionHidden()||(currentLevel().kind==='peek'&&E.started&&E.elapsed<2200))return;
  if(dynamic()&&!E.started){beginMotion();return;}
- endHold();E.running=false;S.reward=1500;S.round++;S.toast='';S.toastRemaining=0;sound();render();
+ endHold();E.running=false;S.reward=1500;recRound(Date.now()-roundStartAt);S.round++;S.toast='';S.toastRemaining=0;sound();render();
 }
 function advancedInput(node,pointer){
  if(S.reward||S.overlay||E.boost||motionHidden())return;
@@ -231,7 +231,7 @@ function storyScene(){const id=currentLevel().id,t=Story.time;let out='';
   out+=order.map((name,i)=>sceneButton(name===goal?'相同的影子':'其他影子',name===goal?'target':'other',20+i*30,72,23,arts[name](),'shadow-pad '+(Story.busy&&name===goal?'matched':''))).join('');
  }
  return out;}
-function triggerStory(){if(!isStory()||S.overlay||S.reward||Story.busy||Story.done)return;endHold();Story.busy=true;Story.time=0;S.round++;S.toast='';sound();render();}
+function triggerStory(){if(!isStory()||S.overlay||S.reward||Story.busy||Story.done)return;endHold();Story.busy=true;Story.time=0;recRound(Date.now()-roundStartAt);S.round++;S.toast='';sound();render();}
 function storyInput(obj,e){if(Story.busy||Story.done)return;const matching=currentLevel().id==='shadow';if((S.mode==='slap'&&!matching)||obj?.dataset.object==='target'){if(S.mode!=='dwell'){triggerStory();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');e.preventDefault();requestTick();}else if(obj)tell('再看看，找到对应的物体');}
 function advanceStory(dt){if(!needsStoryTick())return;Story.time+=dt;const id=currentLevel().id;const duration=id==='tree'?2600:id==='panda'?(Story.step===0?1250:2200):id==='egg'?(Story.step===2?2400:1350):id==='leaf'?1450:1000;
  if(Story.time>=duration){Story.busy=false;Story.step++;Story.time=0;if(Story.step>=storyResponses()){Story.done=true;S.reward=1100;}render();}else{const field=document.querySelector('.story-field');if(field)field.innerHTML=storyScene();}}
@@ -274,6 +274,41 @@ window.addEventListener('pointercancel',()=>{Cup.drag=null;});
 window.addEventListener('keydown',e=>{if(!isCup()||S.overlay||!e.target?.closest?.('.cup-stage'))return;const moves={ArrowLeft:[-.25,0],ArrowRight:[.25,0],ArrowUp:[0,-.15],ArrowDown:[0,.15]};if(moves[e.key]){e.preventDefault();turnCup(...moves[e.key]);}});
 
 render();
-
-function saveGameRecord(){try{const key='microstar.game-records.v1';let records=JSON.parse(localStorage.getItem(key)||'[]');if(!Array.isArray(records))records=[];records.push({at:Date.now(),phase:S.phase,level:S.level,name:currentLevel().name,mode:S.mode,responses:S.round,durationMs:Math.max(0,Date.now()-gameStartedAt-gamePausedTotal)});localStorage.setItem(key,JSON.stringify(records.slice(-200)));}catch{}}
-window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==document.querySelector('.parent-frame')?.contentWindow||e.data?.type!=='microstar:start-game')return;const p=e.data.settings;if(!p||![1,2,3].includes(p.phase)||!['slap','precise','dwell'].includes(p.mode)||typeof p.sound!=='boolean'||!['standard','large'].includes(p.size))return;S.phase=p.phase;S.mode=p.mode;soundOn=p.sound;app.style?.setProperty('--target-scale',p.size==='large'?'1.2':'1');parentPreviousOverlay=null;startLevel(0);});
+/* 家长入口改为长按触发：短按不响应，避免孩子误触 */
+document.addEventListener('pointerdown',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){parentHoldStart=Date.now();b.classList.add('holding');}},true);
+document.addEventListener('pointerup',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){if(parentHoldStart)parentHoldMs=Date.now()-parentHoldStart;parentHoldStart=0;b.classList.remove('holding');}},true);
+document.addEventListener('pointercancel',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){parentHoldStart=0;parentHoldMs=0;b.classList.remove('holding');}},true);
+/* 家长端弹窗里的「开始训练」交回儿童模式：约定一条同源 postMessage */
+window.addEventListener('message',e=>{
+ if(e.origin!==location.origin||e.source!==document.querySelector('.parent-frame')?.contentWindow)return;
+ const d=e.data;
+ if(!d||d.type!=='microstar:start-level')return;
+ const phase=Math.max(1,Math.min(3,Math.floor(Number(d.phase))||1));
+ const list=phase===1?stageOne:phase===2?[...levels,pigLevel,...storyLevels]:[cupLevel];
+ const index=Math.max(0,Math.min(list.length-1,Math.floor(Number(d.index))||0));
+ const mode=['slap','precise','dwell'].includes(d.mode)?d.mode:'slap';
+ const t=Number(d.timeoutMs);if(isFinite(t))ROUND_TIMEOUT_MS=Math.max(10000,Math.min(90000,t));
+ if(typeof d.sound==='boolean')soundOn=d.sound;
+ if(d.size==='large'||d.size==='standard')document.documentElement?.style?.setProperty('--target-scale',d.size==='large'?'1.2':'1');
+ parentPreviousOverlay=null;
+ S.phase=phase;S.mode=mode;
+ startLevel(index);
+});
+/* ---- 训练记录桥：把每关成绩写进 localStorage，家长端读取同一份 ---- */
+var roundStartAt=0,currentRec=null;
+var ROUND_TIMEOUT_MS=30000;
+var GAME_RECORD_KEY='microstar.game.sessions';
+function recStart(){currentRec={id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),startedAt:Date.now(),phase:S.phase,levelIndex:S.level,levelName:(phaseLevels()[S.level]||{}).name||'',mode:S.mode,rounds:[]};roundStartAt=Date.now();}
+function recSave(){if(!currentRec||!currentRec.rounds.length)return;currentRec.endedAt=Date.now();try{var a=JSON.parse(localStorage.getItem(GAME_RECORD_KEY)||'[]');var i=-1;for(var k=0;k<a.length;k++){if(a[k]&&a[k].id===currentRec.id){i=k;break;}}if(i>=0){a[i]=currentRec;}else{a.push(currentRec);}localStorage.setItem(GAME_RECORD_KEY,JSON.stringify(a.slice(-40)));}catch(e){}}
+function timeoutRound(){
+ E.roundElapsed=0;recRound(null,true);
+ recRound(Date.now()-roundStartAt);S.round++;
+ if(S.round>=3){if(S.level<phaseLevels().length-1)startLevel(S.level+1);else setOverlay('menu');render();requestTick();return;}
+ roundStartAt=Date.now();
+ if(isAdvanced())resetRound();
+ S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);
+ render();requestTick();
+}
+function recRound(latencyMs,isTimeout){if(!currentRec||currentRec.levelIndex!==S.level||currentRec.phase!==S.phase)recStart();currentRec.rounds.push(isTimeout?{latencyMs:null,ok:false}:{latencyMs:Math.max(0,Math.round(latencyMs)),ok:true});recSave();}
+function saveGameRecord(){if(isPig()&&currentRec&&!currentRec.rounds.length)recRound(Date.now()-roundStartAt);try{let a=JSON.parse(localStorage.getItem('microstar.game-records.v1')||'[]');if(!Array.isArray(a))a=[];a.push({at:Date.now(),phase:S.phase,level:S.level,name:currentLevel().name,mode:S.mode,responses:S.round,durationMs:Math.max(0,Date.now()-gameStartedAt-gamePausedTotal)});localStorage.setItem('microstar.game-records.v1',JSON.stringify(a.slice(-200)));}catch{}recSave();}
+window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==document.querySelector('.parent-frame')?.contentWindow||e.data?.type!=='microstar:start-game')return;const p=e.data.settings;if(!p||![1,2,3].includes(p.phase)||!['slap','precise','dwell'].includes(p.mode))return;S.phase=p.phase;S.mode=p.mode;soundOn=p.sound;parentPreviousOverlay=null;startLevel(0);});

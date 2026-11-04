@@ -9,7 +9,11 @@ import {
 import { applyLightPolicy, resolveLightPolicy } from "@microstar/core-domain";
 import { store } from "./store.js";
 import { MockTransport } from "../transport/mock.js";
-import { WebBluetoothTransport, isWebBluetoothAvailable } from "../transport/web-bluetooth.js";
+import {
+  WebBluetoothTransport,
+  describeBluetoothSupport,
+  type BluetoothSupport,
+} from "../transport/web-bluetooth.js";
 import type { BleTransport, ConnectionState, MotionEvent } from "../transport/types.js";
 
 export interface LogEntry {
@@ -57,6 +61,14 @@ class DeviceService {
     return this.transport instanceof MockTransport;
   }
 
+  /**
+   * 这台设备能不能连蓝牙，以及为什么不能。
+   * 每次读都重新判断——演示时可能换了浏览器或换了地址。
+   */
+  get bluetoothSupport(): BluetoothSupport {
+    return describeBluetoothSupport();
+  }
+
   /** 训练中由遥控台接管 MOTION；其余时候只记录 */
   onMotion(listener: (event: MotionEvent) => void): () => void {
     this.motionListeners.add(listener);
@@ -91,9 +103,15 @@ class DeviceService {
   async connect(): Promise<void> {
     if (this.transport) await this.disconnect();
 
-    const web = isWebBluetoothAvailable();
-    this.transport = web ? new WebBluetoothTransport() : new MockTransport();
+    const support = describeBluetoothSupport();
+    this.transport = support.available ? new WebBluetoothTransport() : new MockTransport();
     this.kind = this.transport.kind;
+
+    if (!support.available) {
+      // 不能静默降级。演示现场"看起来连上了但其实是假的"比连不上更糟。
+      this.log(`这台设备无法使用蓝牙：${support.message}`, "warn");
+      this.log("已切换到模拟设备（不是真实硬件）", "warn");
+    }
 
     this.unsubscribeTransport.push(
       this.transport.subscribeConnection((state, detail) => {

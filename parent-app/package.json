@@ -1,15 +1,19 @@
 {
-  "name": "microstar",
+  "name": "microstar-parent",
   "private": true,
   "version": "0.1.0",
-  "description": "微动星瞳 · CVI 居家神经视觉康复系统（家长端 + 儿童端）",
+  "description": "微动星瞳 · 家长端（平板 / 浏览器）",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
-    "dev": "pnpm --filter @microstar/parent dev",
-    "build:parent": "pnpm --filter @microstar/parent build"
+    "dev": "npm run dev --workspace @microstar/parent",
+    "build:parent": "npm run build --workspace @microstar/parent"
   },
   "devDependencies": {
     "jsdom": "^30.1.3",

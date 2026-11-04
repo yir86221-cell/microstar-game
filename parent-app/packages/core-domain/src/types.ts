@@ -37,6 +37,14 @@ export interface TrialRecord {
   judge: Judge | null;
   /** tHit - tStim */
   latencyMs: number | null;
+  /** 刺激出现 → 第一次触碰屏幕（不要求命中）。测"视觉引导伸手"的快慢 */
+  tFirstTouch?: number | null;
+  /** 本回合屏幕被触碰的次数（含打偏的） */
+  touchCount?: number;
+  /** 命中点离目标中心的距离 ÷ 目标半径。1 = 边缘，大于 1 = 打偏 */
+  offsetRatio?: number | null;
+  /** 本回合点到目标外面的次数。只有精准/悬停模式才有意义 */
+  missCount?: number;
   /** 该回合是从开始就是被拿着的（异常情况，计入数据质量） */
   pickedUpAtStart: boolean;
   abortReason: string | null;

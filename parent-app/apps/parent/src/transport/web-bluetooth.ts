@@ -46,6 +46,74 @@ const getBluetooth = (): BluetoothApi | null => {
 
 export const isWebBluetoothAvailable = (): boolean => getBluetooth() !== null;
 
+export type BluetoothSupportCode =
+  | "ok"
+  | "insecure-context"
+  | "apple-device"
+  | "firefox"
+  | "unknown";
+
+export interface BluetoothSupport {
+  readonly available: boolean;
+  readonly code: BluetoothSupportCode;
+  /** 说给家长听的一句话 */
+  readonly message: string;
+}
+
+const isAppleMobile = (): boolean => {
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  // iPadOS 13 起 UA 伪装成 macOS，用触摸点数区分
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+};
+
+/**
+ * 判断这台设备**为什么**连不了蓝牙。
+ *
+ * 必须给具体原因，不能只返回 false：演示现场最怕的是"点了没反应"。
+ * 三种情况对家长来说是完全不同的解决方案，混在一起等于没说。
+ */
+export function describeBluetoothSupport(): BluetoothSupport {
+  const ua = navigator.userAgent;
+
+  if (getBluetooth()) {
+    return { available: true, code: "ok", message: "这台设备支持蓝牙" };
+  }
+
+  if (isAppleMobile()) {
+    return {
+      available: false,
+      code: "apple-device",
+      message:
+        "iPad / iPhone 上的所有浏览器（包括 Chrome）都不支持网页蓝牙。换成安卓平板或电脑。",
+    };
+  }
+
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    return {
+      available: false,
+      code: "insecure-context",
+      message:
+        "现在打开的地址不是 HTTPS。浏览器只在 HTTPS 或 localhost 下提供蓝牙，换一个地址再试。",
+    };
+  }
+
+  if (/Firefox|FxiOS/i.test(ua)) {
+    return {
+      available: false,
+      code: "firefox",
+      message: "Firefox 从来不支持网页蓝牙。用 Chrome、Edge 或三星浏览器。",
+    };
+  }
+
+  return {
+    available: false,
+    code: "unknown",
+    message: "这个浏览器没有提供蓝牙接口。试试安卓上的 Chrome。",
+  };
+}
+
+
 /**
  * 开发用实现：Chrome / Edge 桌面版可以连真灯。
  *
