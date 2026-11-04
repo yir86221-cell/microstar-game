@@ -6,11 +6,11 @@ function start(p,l,mode='slap'){run(`S.phase=${p};S.mode=${JSON.stringify(mode)}
 const node={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};
 function tap(target=node,id=1){listeners.pointerdown({button:0,pointerId:id,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});}
 assert.match(root.innerHTML,/点击或拍击来开始吧/);run('phaseView()');assert.match(root.innerHTML,/Phase III/);
-for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:5);}
+for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:1);}
 // Compare the restored P2/P3 with actual historical source, not a hand-written replica.
 const old=environment(fs.readFileSync(require('node:path').join(__dirname,'fixtures/legacy-game.js'),'utf8'));
 const normalize=s=>s.replace(/<p class="(?:task-caption|mode-note)[^"]*"[^>]*>[\s\S]*?<\/p>/g,'').replace(/ child-sr-only/g,'').replace(/story-levels/g,'').replace(/<button class="preview[^"]*" data-level="[4-9]"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
-for(const p of [2,3])for(let l=0;l<4;l++)for(const mode of ['slap','precise','dwell']){
+for(const p of [2])for(let l=0;l<4;l++)for(const mode of ['slap','precise','dwell']){
  start(p,p===3?l+1:l,mode);old.run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);
  assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),`P${p}.${l+1} game restored`);
  run('setOverlay("menu")');old.run('setOverlay("menu")');if(p===2)assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),'original menu restored');else assert.match(root.innerHTML,/转转黄杯子/);
@@ -46,18 +46,18 @@ assert.notEqual(run('S.overlay'),'done');
 for(const l of [3,6]){start(1,l,'precise');for(let i=0;i<3;i++){if(run('dynamic()')){run('beginMotion()');advance(100);}tap();advance(1800);}assert.notEqual(run('S.overlay'),'done');}
 assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].color'),'#ff9637');assert.equal(run('stageOne[5].color'),'#ff70ba');assert.equal(run('stageOne[6].color'),'#b128ff');
 start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
-console.log('PASS: P2/P3 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
+console.log('PASS: P2 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
 for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
 start(1,4);run("setOverlay('menu');action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
 
-for(const p of [1,2,3]){start(p,p===3?1:0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),p===3?2:1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:p===2?9:4);run('S.round=3;S.reward=1');advance(100);if(p<3){assert.equal(run('S.phase'),p+1);assert.equal(run('S.level'),0);assert.equal(run('S.overlay'),null);}else assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
+for(const p of [1,2]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),p===3?2:1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:p===2?9:4);run('S.round=3;S.reward=1');advance(100);if(p<3){assert.equal(run('S.phase'),p+1);assert.equal(run('S.level'),0);assert.equal(run('S.overlay'),null);}else assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
 
 start(2,1);run("respond();action('parent')");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
 
 // Only the embedded parent frame can apply validated game settings.
 run("globalThis.location={origin:'https://example.test'};globalThis.localStorage={items:{},getItem(k){return this.items[k]||null},setItem(k,v){this.items[k]=v}};globalThis.parentSource={};const baseQuery=document.querySelector;document.querySelector=q=>q==='.parent-frame'?{contentWindow:parentSource}:baseQuery(q)");
-const source=run('parentSource');const settings={phase:3,mode:'precise',sound:true,size:'large'};wins.message({origin:'https://wrong.test',source,data:{type:'microstar:start-game',settings}});start(1,0);wins.message({origin:'https://example.test',source,data:{type:'microstar:start-game',settings:{...settings,phase:4}}});assert.equal(run('S.phase'),1);wins.message({origin:'https://example.test',source,data:{type:'microstar:start-game',settings}});assert.equal(run('S.phase'),3);assert.equal(run('S.mode'),'precise');assert.equal(run('soundOn'),true);assert.equal(run('S.level'),0);run('startLevel(1);S.round=3;S.reward=1');advance(100);assert.equal(run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))[0].responses"),3);
+const source=run('parentSource');const settings={phase:3,mode:'precise',sound:true,size:'large'};wins.message({origin:'https://wrong.test',source,data:{type:'microstar:start-game',settings}});start(1,0);wins.message({origin:'https://example.test',source,data:{type:'microstar:start-game',settings:{...settings,phase:4}}});assert.equal(run('S.phase'),1);wins.message({origin:'https://example.test',source,data:{type:'microstar:start-game',settings}});assert.equal(run('S.phase'),3);assert.equal(run('S.mode'),'precise');assert.equal(run('soundOn'),true);assert.equal(run('S.level'),0);run('S.phase=2;startLevel(1);S.round=3;S.reward=1');advance(100);assert.equal(run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))[0].responses"),3);
 
 // P1 1/2 advance after one complete feedback, with exactly one recorded response.
 for(const l of [0,1]){
@@ -108,7 +108,7 @@ for(const [index,durations] of [[5,[2600,2600,2600]],[6,[1250,2200]],[7,[1350,13
   advance(durations[i]-250);assert.equal(run('Story.step'),i+1);assert.equal(run('Story.busy'),false);
   if(i<durations.length-1)assert.equal(run('S.reward'),0);else assert.ok(run('S.reward')>0);
  }
- if(index===5){assert.match(run('storyScene()'),/left:10.5%/);assert.match(run('storyScene()'),/left:17.5%/);assert.match(run('storyScene()'),/top:73.9%/);}
+ if(index===5){assert.match(run('storyScene()'),/left:25%/);assert.match(run('storyScene()'),/left:70%/);assert.match(run('storyScene()'),/left:63%/);}
  advance(1200);if(index<9)assert.equal(run('S.level'),index+1);else {assert.equal(run('S.phase'),3);assert.equal(run('S.level'),0);}
  start(2,index);run('action("replay")');assert.equal(run('Story.step'),0);assert.equal(run('Story.busy'),false);
 }
@@ -125,9 +125,17 @@ run('turnCup(.7,.2)');assert.notEqual(run('cupMesh()'),mesh);const yaw=run('Cup.
 run('action("cup-reset")');assert.equal(run('cupMesh()'),mesh);run('action("cup-up")');assert.ok(run('Cup.pitch')<-.3);run('action("replay")');assert.equal(run('Cup.yaw'),.45);
 const cupNode={...node,setPointerCapture:()=>{}};const input={pointerId:80,clientX:100,clientY:100,preventDefault:()=>{}};run('S.mode="precise"');const cStart=run('Cup.yaw');run('globalThis.cupNode={setPointerCapture(){}}');run('cupInput(cupNode,{pointerId:80,clientX:100,clientY:100,preventDefault(){}})');wins.pointermove({pointerId:80,clientX:150,clientY:120});assert.ok(run('Cup.yaw')>cStart);wins.pointerup({pointerId:80});assert.equal(run('Cup.drag'),null);assert.equal(run('S.round'),0,'free exploration is not a clinical score or automatic completion');
 run('turnCup(0,99)');assert.equal(run('Cup.pitch'),1.15);run('turnCup(0,-99)');assert.equal(run('Cup.pitch'),-1.15);
-console.log('PASS: P2 to P3 transition, stationary hollow cup mesh, drag/tap/keyboard controls, pitch limits, pause, replay and preserved legacy P3 tasks.');
+console.log('PASS: P2 to P3 transition, stationary hollow cup mesh, drag/tap/keyboard controls, pitch limits, pause, replay and cup-only P3.');
 for(const phase of [1,2,3]){run(`S.phase=${phase}`);const count=run('phaseLevels().length');for(let i=0;i<count;i++){start(phase,i);assert.doesNotMatch(root.innerHTML,/<p class="(?:task-caption|mode-note|advanced-hint|advanced-mode-note)/);}}
 start(3,0);assert.doesNotMatch(root.innerHTML,/cup-controls|<h1|拖动黄杯子，转一转/);
 // Handle terminates inside the solid wall, never enters the hollow interior.
 for(let a=-Math.PI/2;a<=Math.PI/2;a+=Math.PI/160)for(let b=0;b<Math.PI*2;b+=Math.PI/12){const y=(.72+.115*Math.cos(b))*Math.sin(a),x=.875-.09*y+(.7+.115*Math.cos(b))*Math.cos(a),z=.115*Math.sin(b);const inner=.805-.085*y;assert.ok(Math.hypot(x,z)>inner,'handle stays outside hollow cavity');}
 console.log('PASS: all child captions removed, cup-only scene and handle geometry outside the cup cavity.');
+// Directional apples and a stationary panda: only the loose bamboo and mouth change.
+start(2,5);assert.match(run('storyScene()'),/aria-label="苹果树" style="left:50%;top:40%/);
+for(let i=0;i<3;i++){tap();advance(1300);const html=run('storyScene()');const apples=[...html.matchAll(/class="scene-apple" style="left:([\d.]+)%/g)];const x=Number(apples.at(-1)[1]);assert.ok(i===0?x<50:x>50,'first left, later two right');advance(1400);}
+start(2,6,'precise');tap();advance(1300);tap();const mouthStates=[];
+for(let i=0;i<4;i++){advance(300);const html=run('storyScene()');assert.match(html,/aria-label="熊猫" style="left:28%;top:58%;width:36%/);assert.doesNotMatch(html,/panda-chew/);mouthStates.push(html.match(/class="panda-mouth"[^>]*ry="([^"]*)"/)[1]);}
+assert.ok(new Set(mouthStates).size>1,'mouth opens and closes without moving body');assert.match(run('storyScene()'),/panda-bite/);run('setOverlay("pause")');const frozenMeal=run('storyScene()');advance(1000);assert.equal(run('storyScene()'),frozenMeal);
+start(3,0);assert.equal(run('phaseLevels().length'),1);run('setOverlay("menu")');assert.equal((root.innerHTML.match(/data-level=/g)||[]).length,1);assert.doesNotMatch(root.innerHTML,/让小鸡跳舞|让小车开起来|摘下红苹果|点亮小星星/);
+console.log('PASS: centered tree, left/right/right apple routes, stationary panda with bamboo approach and mouth detail, cup-only P3 menu.');

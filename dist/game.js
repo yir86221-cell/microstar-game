@@ -16,7 +16,7 @@ const planetLevel={id:'circle',name:'星球点亮',target:'黄色圆球',action:
 const colorLevel={id:'colors',name:'色彩探索',target:'亮起的圆球',action:'点亮圆球',feedback:'圆球亮起来啦！'};
 const pigLevel={id:'pig',name:'小猪快跑',target:'小猪',action:'看看小猪会做什么',feedback:'小猪跑远啦！'};
 const ballColors=[{label:'红色',base:'#ff3b30',lit:'#ff3b30',rgb:'255,59,48'},{label:'黄色',base:'#ffe600',lit:'#ffe600',rgb:'255,230,0'},{label:'蓝色',base:'#168bff',lit:'#168bff',rgb:'22,139,255'}];
-function phaseLevels(){return S.phase===1?stageOne:S.phase===2?[...levels,pigLevel,...storyLevels]:[cupLevel,...levels];}
+function phaseLevels(){return S.phase===1?stageOne:S.phase===2?[...levels,pigLevel,...storyLevels]:[cupLevel];}
 function requiredResponses(){return (S.phase===1&&S.level<2)||isPig()?1:isStory()?storyResponses():3;}
 function isPlanet(){return S.phase===1&&['circle','colors'].includes(phaseLevels()[S.level]?.id);}
 function currentLevel(){const l=phaseLevels()[S.level];if(l.id!=='colors')return l;const c=ballColors[Math.min(2,Math.max(0,S.round-(S.reward?1:0)))];return {...l,target:c.label+'圆球',color:c.base,lit:c.lit,rgb:c.rgb};}
@@ -192,20 +192,30 @@ function needsStoryTick(){return isStory()&&Story.busy;}
 function sceneButton(label,id,x,y,w,art,extra=''){return `<button class="scene-object ${extra}" data-object="${id}" aria-label="${label}" style="left:${x}%;top:${y}%;width:${w}%">${art}</button>`;}
 function storyView(){const l=currentLevel();return `<section class="page game story-game"><div class="topbar"><button class="icon-btn" data-action="pause" aria-label="暂停游戏">${icon.pause}</button><button class="icon-btn" data-action="menu" aria-label="打开游戏菜单">${icon.menu}</button><button class="small-btn" data-action="phases">返回阶段</button></div><h1 class="advanced-title">P2 · ${S.level+1} / 10 · ${l.name}</h1><div class="story-field">${storyScene()}</div><div class="toast child-sr-only" role="status">${S.toast}</div></section>`;}
 function storyHint(){if(Story.done)return '做得好！';const id=currentLevel().id;if(id==='tree')return Story.busy?'苹果落下来，慢慢滚到树下':'点点树，让苹果落下来';if(id==='panda')return Story.busy?(Story.step===0?'竹子落下来啦':'熊猫在吃竹子'):(Story.step===0?'点点右边的竹子':'点点熊猫，吃竹子');if(id==='egg')return Story.busy?(Story.step===2?'长出翅膀，飞起来啦':'小眼睛眨一眨'):'点点黄色的蛋';if(id==='leaf')return Story.busy?'仔细看看，苹果在变化':'点点苹果，看看新特征';return '看看上面的物体，找到相同的黑色影子';}
+function pandaEatingArt(t){
+ const eating=Story.busy&&Story.step===1&&t>=650;
+ const open=eating?3+3*(.5+.5*Math.sin((t-650)/95)):2;
+ const mouth=`<ellipse class="panda-mouth" cx="160" cy="157" rx="9" ry="${open}" fill="#19191e"/>`;
+ const bite=eating&&t<2000?`<path class="panda-bite" d="M168 155l13-2-1 6-12 1Z" fill="#48e46b"/>`:'';
+ return arts.panda().replace('</svg>',mouth+bite+'</svg>');
+}
 function storyScene(){const id=currentLevel().id,t=Story.time;let out='';
  if(id==='tree'){
-  out=sceneButton('苹果树','target',31,40,42,arts.tree());
-  // Three equal circles settle into a tangent triangular pile; each trajectory lands before rolling.
-  const destinations=[[10.5,84],[17.5,84],[14,73.9]];
-  for(let i=0;i<3;i++){if(i>Story.step||i===Story.step&&!Story.busy)continue;let [x,y]=destinations[i],rot=-230;
-   if(i===Story.step&&Story.busy){if(t<850){const p=t/850;x=33;y=28+56*p*p;rot=0;}else{const p=Math.min(1,(t-850)/1550),e=1-(1-p)**3;x=33+(x-33)*e;y=84-2*Math.sin(p*Math.PI)*Math.exp(-p*3);if(i===2){if(e<.4){x=33-(33-24.5)*e/.4;y=84;}else{const a=(e-.4)/.6*Math.PI*2/3;x=17.5+7*Math.cos(a);y=84-11.66*Math.sin(a);}}rot=-230*e;}}
+  out=sceneButton('苹果树','target',50,40,42,arts.tree());
+  // First apple rolls left; the next two roll right and settle side by side without overlap.
+  const destinations=[[25,84],[70,84],[63,84]];
+  for(let i=0;i<3;i++){if(i>Story.step||i===Story.step&&!Story.busy)continue;let [x,y]=destinations[i],rot=i===0?-230:230;
+   if(i===Story.step&&Story.busy){if(t<850){const p=t/850;x=50;y=28+56*p*p;rot=0;}else{const p=Math.min(1,(t-850)/1550),e=1-(1-p)**3;x=50+(x-50)*e;y=84-2*Math.sin(p*Math.PI)*Math.exp(-p*3);rot=(i===0?-230:230)*e;}}
    out+=`<div class="scene-apple" style="left:${x}%;top:${y}%;transform:translate(-50%,-50%) rotate(${rot}deg)">${svg(appleBody+stalk+leaf)}</div>`;
   }
  }else if(id==='panda'){
-  out=sceneButton('熊猫',Story.step===1?'target':'other',28,58,36,arts.panda(),Story.busy&&Story.step===1?'panda-chew':'');
+  out=sceneButton('熊猫',Story.step===1?'target':'other',28,58,36,pandaEatingArt(t),'');
   out+=sceneButton('竹子',Story.step===0?'target':'other',76,46,31,bamboo(Story.busy||Story.step>0));
-  if(Story.step||Story.busy){let x=Story.step?45:76,y=Story.step?72:46,r=Story.step?75:0,scale=1;if(Story.busy&&Story.step===0){const p=Math.min(1,t/1100);x=76-31*p;y=46+26*p*p;r=75*p;}if(Story.busy&&Story.step===1){const p=Math.min(1,t/1800);x=45-10*p;y=72-28*p;scale=1-p;}
-   out+=`<div class="bamboo-piece" style="left:${x}%;top:${y}%;transform:translate(-50%,-50%) rotate(${r}deg) scale(${scale})"><svg viewBox="0 0 160 40" aria-hidden="true"><rect x="3" y="7" width="154" height="26" rx="9" fill="#48e46b"/><path d="M38 7v26M116 7v26" stroke="#156f36" stroke-width="4"/></svg></div>`;
+  if(Story.step||Story.busy){let x=45,y=72,r=75,remaining=1;
+   if(Story.busy&&Story.step===0){const p=Math.min(1,t/1100);x=76-31*p;y=46+26*p*p;r=75*p;}
+   if(Story.busy&&Story.step===1){const p=Math.min(1,t/650),e=p*p*(3-2*p);x=45-8.5*e;y=72-15*e;r=75*(1-e);remaining=t<650?1:Math.max(0,1-(t-650)/1550);}
+   if(Story.done)remaining=0;
+   out+=`<div class="bamboo-piece" style="left:${x}%;top:${y}%;transform:translate(-50%,-50%) rotate(${r}deg)"><svg viewBox="0 0 160 40" aria-hidden="true"><defs><clipPath id="bamboo-bite-clip"><rect width="${160*remaining}" height="40"/></clipPath></defs><g clip-path="url(#bamboo-bite-clip)"><rect x="3" y="7" width="154" height="26" rx="9" fill="#48e46b"/><path d="M38 7v26M116 7v26" stroke="#156f36" stroke-width="4"/></g></svg></div>`;
   }
  }else if(id==='egg'){
   const fly=Story.busy&&Story.step===2,p=fly?Math.min(1,t/2400):0;

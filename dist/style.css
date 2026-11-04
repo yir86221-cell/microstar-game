@@ -92,12 +92,9 @@
 .shadow-pad svg *{fill:#050505!important;stroke:none!important}
 .shadow-pad.matched{background:#8ddd9a;box-shadow:0 0 25px #4be77a88}
 .scene-glow{filter:drop-shadow(0 0 16px #ff293a66)}
-.panda-chew{animation:panda-chew .4s ease-in-out infinite alternate}
-@keyframes panda-chew{to{transform:translate(-50%,-48%) scale(var(--target-scale,1)) rotate(2deg)}}
-.story-game:has(~ .overlay) .panda-chew{animation-play-state:paused}
 .story-levels{max-height:53cqh;overflow-y:auto;grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(orientation:portrait){.story-field{top:32%;left:2%;width:96%}.story-game .advanced-title{top:20%;left:5%;right:5%;text-align:center}}
-@media(prefers-reduced-motion:reduce){.panda-chew{animation:none}}
+
 .story-field{left:50%;width:min(90cqw,100cqh);transform:translateX(-50%)}
 @media(orientation:portrait){.story-field{left:50%;width:96cqw}}
 /* P3 fallback: a real projected hollow yellow cup, motion only on deliberate input. */
