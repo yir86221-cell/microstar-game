@@ -69,3 +69,15 @@
 /* Soft controls keep the child playfield black and uncluttered. */
 .icon-btn,.close-btn{border-radius:50%}.drawer{background:#15141b;border-radius:0 36px 36px 0;gap:22px}.preview{border:0;border-radius:30px;background:#050505;box-shadow:none;padding:7px}.preview.selected{border:0;background:#35301a}.preview-label{background:transparent;padding:13px 7px;color:#eee}.selected-mark{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:#ffe600;color:#201c00;font-size:18px}.mode-chip{border:0;border-radius:999px;background:#302d37;padding:13px 10px}.primary,.secondary{border:0;border-radius:999px}.secondary{background:#302d37}.modal{border:0;border-radius:36px}.parent-toolbar{border:0;background:#17141f;border-radius:0 0 24px 24px}.parent-toolbar .small-btn{border-radius:999px;background:#30253e;color:#e5d5ff;padding:10px 20px}.parent-entry{border-radius:999px}.object .art{zoom:var(--target-scale,1)}.moving-anchor .art{zoom:var(--target-scale,1)}
 @media(max-height:560px){.drawer{gap:10px;border-radius:0 26px 26px 0}.preview{border-radius:22px}.preview-label{padding:6px}.mode-chip{padding:7px}.primary{padding:10px}}
+/* P2 fifth scene: a simple side-view pig and a single clump of grass. */
+.pig-field{position:absolute;inset:20% 0 18%;overflow:visible}
+.pig-grass{position:absolute;left:18%;top:58%;width:min(23cqw,29cqh);aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none}
+.pig-runner{position:absolute;left:var(--pig-x,54%);top:48%;width:min(43cqw,54cqh);aspect-ratio:1;transform:translate(-50%,-50%)}
+.pig-target{position:relative;display:block;width:100%;height:100%;padding:0;touch-action:none}
+.pig-tail{transform-origin:62px 167px;transform:rotate(var(--tail-angle,0deg))}
+.pig-running .pig-art{animation:pig-trot .32s ease-in-out infinite alternate}
+.pig-game:has(~ .overlay) .pig-art{animation-play-state:paused}
+@keyframes pig-trot{from{transform:translateY(0) rotate(-1deg)}to{transform:translateY(-5px) rotate(1deg)}}
+@media(orientation:portrait){.pig-field{inset:28% 0 27%}.pig-runner{width:52cqw}.pig-grass{left:17%;width:27cqw}.pig-game .advanced-title{top:17%;left:5%;right:5%;text-align:center}}
+@media(prefers-reduced-motion:reduce){.pig-running .pig-art{animation:none}}
+.pig-target{transform:scale(var(--target-scale,1));transform-origin:center}
