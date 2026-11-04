@@ -20,7 +20,7 @@ start(1,0);advance(3000);assert.equal(run('S.round'),0);tap();assert.equal(run('
 start(1,1);assert.match(root.innerHTML,/star-art/);
 start(1,2);for(let i=0;i<3;i++){assert.equal(run('S.targetSlot'),i);tap({dataset:{object:'other'}});assert.equal(run('S.round'),i);tap();advance(1800);}assert.notEqual(run('S.overlay'),'done');
 // Three inputs accelerate three segments; success requires arriving at the actual final endpoint.
-for(const l of [4,7,8]){
+for(const l of [4,7,8,9]){
  start(1,l);assert.equal(run('E.progress'),0);advance(2000);assert.equal(run('E.progress'),0,'initial observation remains still');
  for(let i=0;i<3;i++){
   tap();assert.equal(run('S.round'),i+1);assert.equal(run('S.reward'),0,'a tap does not freeze the object');assert.equal(run('E.running'),true);
@@ -43,8 +43,8 @@ for(const [i,pos] of [[0,[22,50]],[1,[78,72]],[2,[22,28]]]){
 }
 assert.notEqual(run('S.overlay'),'done');
 // Rest of P1 still completes normally; colors vary by task without recoloring the original first three.
-for(const l of [3,6,9]){start(1,l,'precise');for(let i=0;i<3;i++){if(run('dynamic()')){run('beginMotion()');advance(100);}tap();advance(1800);}assert.notEqual(run('S.overlay'),'done');}
-assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].color'),'#ff9637');assert.equal(run('stageOne[5].color'),'#ff70ba');assert.equal(run('stageOne[6].color'),'#b57aff');
+for(const l of [3,6]){start(1,l,'precise');for(let i=0;i<3;i++){if(run('dynamic()')){run('beginMotion()');advance(100);}tap();advance(1800);}assert.notEqual(run('S.overlay'),'done');}
+assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].color'),'#ff9637');assert.equal(run('stageOne[5].color'),'#ff70ba');assert.equal(run('stageOne[6].color'),'#b128ff');
 start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
 console.log('PASS: P2/P3 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
@@ -58,3 +58,23 @@ start(2,1);run("respond();action('parent')");assert.match(root.innerHTML,/src="p
 // Only the embedded parent frame can apply validated game settings.
 run("globalThis.location={origin:'https://example.test'};globalThis.localStorage={items:{},getItem(k){return this.items[k]||null},setItem(k,v){this.items[k]=v}};globalThis.parentSource={};const baseQuery=document.querySelector;document.querySelector=q=>q==='.parent-frame'?{contentWindow:parentSource}:baseQuery(q)");
 const source=run('parentSource');const settings={phase:3,mode:'precise',sound:true,size:'large'};wins.message({origin:'https://wrong.test',source,data:{type:'microstar:start-game',settings}});start(1,0);wins.message({origin:'https://example.test',source,data:{type:'microstar:start-game',settings:{...settings,phase:4}}});assert.equal(run('S.phase'),1);wins.message({origin:'https://example.test',source,data:{type:'microstar:start-game',settings}});assert.equal(run('S.phase'),3);assert.equal(run('S.mode'),'precise');assert.equal(run('soundOn'),true);assert.equal(run('S.level'),0);run('S.round=3;S.reward=1');advance(100);assert.equal(run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))[0].responses"),3);
+
+// P1 1/2 advance after one complete feedback, with exactly one recorded response.
+for(const l of [0,1]){
+ start(1,l);assert.equal(run('requiredResponses()'),1);tap();assert.equal(run('S.round'),1);
+ assert.equal(run('S.level'),l,'feedback finishes before advancing');
+ advance(1700);assert.equal(run('S.level'),l+1);assert.equal(run('S.round'),0);
+ const records=run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))");
+ assert.equal(records.at(-1).responses,1,'record reflects one response, not three');
+}
+// Path finishes at the final corner only after three actual movements.
+start(1,9);assert.deepEqual(JSON.parse(JSON.stringify(run('position()'))),{x:22,y:30});
+for(const [i,point] of [[1,{x:50,y:30}],[2,{x:78,y:30}],[3,{x:78,y:70}]]){
+ tap();assert.equal(run('S.round'),i);advance(950);
+ const pos=JSON.parse(JSON.stringify(run('position()')));assert.ok(Math.abs(pos.x-point.x)<.5&&Math.abs(pos.y-point.y)<.5);
+ if(i<3){assert.equal(run('S.reward'),0);assert.equal(run('S.overlay'),null);}else assert.ok(run('S.reward')>0);
+}
+advance(1700);assert.equal(run('S.overlay'),'menu','last P1 task returns to menu after final arrival');
+assert.equal(run('stageOne[9].color'),'#b128ff');
+assert.ok(run('ballColors.every(c=>c.lit===c.base)'),'guidance and reward keep saturated original colors');
+console.log('PASS: one-response P1 1/2 and records; three-step P1 10 with corner arrival; saturated color feedback.');
