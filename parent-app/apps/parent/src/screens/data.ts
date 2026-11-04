@@ -1,3 +1,4 @@
+import {gameRecords} from '../lib/game-bridge.js';
 import { hitRate, latencyStats, summarize } from "@microstar/core-domain";
 import { buildAdvice } from "../lib/advice.js";
 import { lineChart } from "../lib/chart.js";
@@ -92,6 +93,7 @@ export const render: ScreenRenderer = (ctx) => {
           h("p", { class: "sub" }, `${STAGE_META[state.plan.stage].title} · ${STAGE_META[state.plan.stage].phase}`),
         ),
       ),
+      gameRecords(),
       status,
       trend,
       metrics,
