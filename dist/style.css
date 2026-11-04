@@ -100,3 +100,8 @@
 @media(prefers-reduced-motion:reduce){.panda-chew{animation:none}}
 .story-field{left:50%;width:min(90cqw,100cqh);transform:translateX(-50%)}
 @media(orientation:portrait){.story-field{left:50%;width:96cqw}}
+/* P3 fallback: a real projected hollow yellow cup, motion only on deliberate input. */
+.cup-stage{position:absolute;left:50%;top:47%;width:min(62cqw,66cqh);aspect-ratio:500/450;transform:translate(-50%,-50%) scale(var(--target-scale,1));padding:0;touch-action:none;cursor:grab}
+.cup-stage:active{cursor:grabbing}.cup-controls{position:absolute;left:5%;right:5%;bottom:22%;display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.cup-controls .small-btn{min-height:44px;background:#24201a;border-radius:24px;padding:10px 18px;color:#ffdf24}.cup-game .advanced-hint{bottom:12%}
+@media(orientation:portrait){.cup-stage{width:min(86cqw,60cqh);top:45%}.cup-controls{bottom:23%;gap:8px}.cup-controls .small-btn{padding:9px 12px}.cup-game .advanced-title{top:18%;left:5%;right:5%;text-align:center}.cup-game .advanced-hint{bottom:15%}}
