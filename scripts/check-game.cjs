@@ -1,4 +1,4 @@
-const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+﻿const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 function environment(source){const listeners={},wins={},root={innerHTML:'',addEventListener:(t,f)=>listeners[t]=f};const c={document:{querySelector:s=>s==='#app'?root:null,querySelectorAll:()=>[],addEventListener:()=>{},hidden:false},window:{addEventListener:(t,f)=>wins[t]=f},requestAnimationFrame:()=>{},console};vm.createContext(c);vm.runInContext(source,c);return{root,listeners,wins,run:s=>vm.runInContext(s,c)};}
 const env=environment(fs.readFileSync(require('node:path').join(__dirname,'../dist/game.js'),'utf8')), {root,run,listeners,wins}=env;
 let time=0;function advance(ms){for(let n=0;n<ms;n+=50){time+=50;run(`tick(${time})`);}}
@@ -48,7 +48,20 @@ assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].c
 start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
 console.log('PASS: P2/P3 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
-for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
-start(1,4);run("setOverlay('menu');action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
+for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("parentHoldMs=1000;action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
+start(1,4);run("setOverlay('menu');parentHoldMs=1000;action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
 
 for(const p of [1,2,3]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:3);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
+
+start(2,1);run("respond();parentHoldMs=1000;action('parent')");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
+// 家长入口改为长按：短按不应打开，长按才打开
+start(1,0);run('parentHoldMs=0');run("action('parent')");assert.equal(run('S.overlay'),null);
+start(1,0);run('parentHoldMs=1200');run("action('parent')");assert.equal(run('S.overlay'),'parent');
+console.log('PASS: parent entry requires long press (short press ignored).');
+
+// 超时：到时间没有回应，要记一次「无反应」并推进回合（不能一直干等）
+start(1,0);run('E.roundElapsed=0');advance(31000);assert.equal(run('S.round'),1,'timeout counts as a round');
+start(1,0);run('E.roundElapsed=0');advance(20000);assert.equal(run('S.round'),0,'before window no round yet');
+// 判定窗口可以被家长端传来的 timeoutMs 收窄
+start(1,0);run('ROUND_TIMEOUT_MS=12000;E.roundElapsed=0');advance(13000);assert.equal(run('S.round'),1,'custom window honored');
+console.log('PASS: no-response timeout advances the round and honors a custom window.');

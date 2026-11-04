@@ -1,46 +1,54 @@
 import type { LightPresetName } from "@microstar/core-protocol";
 import { DEFAULT_LOOP, type LoopParameters, type TrialRecord } from "@microstar/core-domain";
+import { clearGameRecords, readGameRecords, type GameRecord } from "./gameBridge.js";
 
 // ---------------------------------------------------------------- 类型
 
-export type Stage = 1 | 2 | 3 | 4;
-export type CviPhase = 1 | 2 | 3;
-/** 1–3 阶的触屏通道。第 4 阶由加速度计判定，不走这里。 */
-export type AccessMode = "anywhereTap" | "hover" | "targetTap";
+/** 儿童端的三个阶段。家长端在它之后多一个「实物训练」。 */
+export type PhaseId = 1 | 2 | 3;
+/** 1–3 = 三个阶段（与儿童端一致）；4 = 实物训练，只存在于家长端 */
+export type StageId = 1 | 2 | 3 | 4;
+
+/** 与儿童端一致的三种回应方式 */
+export type AccessMode = "slap" | "precise" | "dwell";
 export type HandFunction = "fist" | "spastic" | "canGrasp";
 export type FieldBias = "left" | "right" | "up" | "down" | "center";
+
+export interface Level {
+  id: string;
+  phase: PhaseId;
+  /** 关卡名，与儿童端一致 */
+  name: string;
+  /** 目标物 */
+  target: string;
+  /** 要孩子做的动作 */
+  action: string;
+  /** 主色 */
+  color: string;
+  kind: string;
+}
 
 export interface ChildProfile {
   nickname: string;
   birthDate: string;
-  cviPhase: CviPhase;
-  /** 光敏癫痫史——直接决定灯光策略，安全关键 */
+  cviPhase: PhaseId;
   photosensitive: boolean;
   highLightSensitivity: boolean;
-  /** 触觉防御，要关掉马达 */
   tactileSensitive: boolean;
   handFunction: HandFunction;
   fieldBias: FieldBias;
 }
 
-export interface Asset {
-  id: string;
-  name: string;
-  stage: Stage;
-  kind: "geometry" | "outline" | "purified" | "real";
-  color: string;
-}
-
 export interface AppPlan {
-  stage: Stage;
-  accessMode: AccessMode;
+  stage: StageId;
+  /** 1–3 阶：关卡 id；第 4 阶固定为 physical */
+  levelId: string;
+  mode: AccessMode;
   judgeWindowMs: number;
   maxMinutes: number;
   maxRounds: number;
   brightness: number;
   preset: LightPresetName;
-  assetIds: string[];
-  /** 第 4 阶自动回路参数；1–3 阶不用 */
   loop: LoopParameters;
 }
 
@@ -48,12 +56,16 @@ export interface SessionRecord {
   id: string;
   startedAt: number;
   endedAt: number;
-  stage: Stage;
-  /** screen = 1–3 阶纯屏幕；physical = 第 4 阶用灯的自动回路 */
+  stage: StageId;
+  levelId: string;
+  levelName: string;
+  /** screen = 1–3 阶触屏；physical = 第 4 阶用灯的自动回路 */
   mode: "screen" | "physical";
   trials: TrialRecord[];
   litMinutes: number;
   brightness: number;
+  /** 这条记录从哪来：儿童端打出来的，还是家长端实物训练。 */
+  origin?: "game" | "parent";
 }
 
 export interface AppState {
@@ -65,62 +77,78 @@ export interface AppState {
   usage: { litMinutes: number; brightness: number }[];
   lastFullChargeAt: number | null;
   selfTest: { at: number; ok: boolean } | null;
+  /** 当前数据是不是演示数据（程序生成的，不是真实训练） */
+  isDemo: boolean;
 }
 
-// ---------------------------------------------------------------- 素材库
+// ---------------------------------------------------------------- 阶段与关卡（对齐儿童端）
 
-export const STAGE_META: Record<
-  Stage,
-  { title: string; subtitle: string; phase: string }
-> = {
-  1: {
-    title: "纯色几何",
-    subtitle: "黑底纯色图形，建立视觉注意",
-    phase: "Phase I",
-  },
-  2: {
-    title: "具象轮廓",
-    subtitle: "高饱和单色轮廓，训练物体特征识别",
-    phase: "Phase II",
-  },
-  3: {
-    title: "提纯照片",
-    subtitle: "家里的水杯、玩偶，去掉背景与纹理",
-    phase: "Phase II",
-  },
-  4: {
-    title: "现实泛化",
-    subtitle: "贴上提示灯的实物，用拿起动作判分",
-    phase: "Phase III",
-  },
-};
-
-export const ASSETS: Asset[] = [
-  { id: "g-red-circle", name: "红圆", stage: 1, kind: "geometry", color: "#ff2d2d" },
-  { id: "g-yellow-circle", name: "黄圆", stage: 1, kind: "geometry", color: "#ffc800" },
-  { id: "g-red-square", name: "红方", stage: 1, kind: "geometry", color: "#ff2d2d" },
-  { id: "g-yellow-square", name: "黄方", stage: 1, kind: "geometry", color: "#ffc800" },
-
-  { id: "o-car", name: "小车", stage: 2, kind: "outline", color: "#ff2d2d" },
-  { id: "o-horse", name: "小马", stage: 2, kind: "outline", color: "#ffc800" },
-  { id: "o-tree", name: "小树", stage: 2, kind: "outline", color: "#3ddc84" },
-  { id: "o-fish", name: "小鱼", stage: 2, kind: "outline", color: "#2f6bff" },
-
-  { id: "p-cup", name: "我的水杯", stage: 3, kind: "purified", color: "#ff2d2d" },
-  { id: "p-doll", name: "我的玩偶", stage: 3, kind: "purified", color: "#ffc800" },
-  { id: "p-bottle", name: "我的奶瓶", stage: 3, kind: "purified", color: "#ffffff" },
-
-  { id: "r-cup", name: "水杯（实物）", stage: 4, kind: "real", color: "#ff2d2d" },
-  { id: "r-doll", name: "玩偶（实物）", stage: 4, kind: "real", color: "#ffc800" },
+export const PHASES: { id: PhaseId; name: string; hint: string }[] = [
+  { id: 1, name: "发现目标", hint: "看见并回应" },
+  { id: 2, name: "认识物品", hint: "认出常见的东西" },
+  { id: 3, name: "生活探索", hint: "在生活场景里找到" },
 ];
 
-export const assetsForStage = (stage: Stage): Asset[] =>
-  ASSETS.filter((a) => a.stage === stage);
+export const LEVELS: Level[] = [
+  // Phase 1 · 发现目标（10 关）
+  { id: "planet", phase: 1, kind: "planet", name: "星球点亮", target: "黄色圆球", action: "点亮星球", color: "#ffe600" },
+  { id: "star", phase: 1, kind: "star", name: "点亮小星星", target: "小星星", action: "点亮小星星", color: "#ffe600" },
+  { id: "colors", phase: 1, kind: "colors", name: "色彩探索", target: "亮起的圆球", action: "点亮圆球", color: "#ff3b30" },
+  { id: "shapes", phase: 1, kind: "shapes", name: "形状朋友", target: "绿色图形", action: "圆 → 方 → 三角", color: "#54e373" },
+  { id: "growth", phase: 1, kind: "growth", name: "大小星球", target: "橙色圆球", action: "点三次，长大并前进", color: "#ff9637" },
+  { id: "peek", phase: 1, kind: "peek", name: "躲猫猫", target: "粉色圆球", action: "左侧 → 右下 → 左上", color: "#ff70ba" },
+  { id: "horizontal", phase: 1, kind: "horizontal", name: "星球换位置", target: "紫色圆球", action: "左 → 中 → 右", color: "#b57aff" },
+  { id: "vertical", phase: 1, kind: "vertical", name: "上下找星星", target: "粉色星星", action: "点三次，上下移动", color: "#ff79bf" },
+  { id: "drift", phase: 1, kind: "drift", name: "漂流星球", target: "绿色圆球", action: "点三次，推到右侧", color: "#39df96" },
+  { id: "path", phase: 1, kind: "path", name: "星光旅行", target: "紫色圆球", action: "横移、停顿、再向下", color: "#a087ff" },
 
-export const assetById = (id: string): Asset | undefined =>
-  ASSETS.find((a) => a.id === id);
+  // Phase 2 · 认识物品（4 关）
+  { id: "chick", phase: 2, kind: "item", name: "让小鸡跳舞", target: "小鸡", action: "和小鸡打招呼", color: "#ffe600" },
+  { id: "car", phase: 2, kind: "item", name: "让小车开起来", target: "小车", action: "让小车出发", color: "#00dce9" },
+  { id: "apple", phase: 2, kind: "item", name: "摘下红苹果", target: "红苹果", action: "摘下红苹果", color: "#ff3b30" },
+  { id: "starchild", phase: 2, kind: "item", name: "点亮小星星", target: "小星星", action: "点亮小星星", color: "#ffe600" },
 
-// ---------------------------------------------------------------- 默认状态
+  // Phase 3 · 生活探索（4 关）
+  { id: "p3-chick", phase: 3, kind: "item", name: "让小鸡跳舞", target: "小鸡", action: "和小鸡打招呼", color: "#ffe600" },
+  { id: "p3-car", phase: 3, kind: "item", name: "让小车开起来", target: "小车", action: "让小车出发", color: "#00dce9" },
+  { id: "p3-apple", phase: 3, kind: "item", name: "摘下红苹果", target: "红苹果", action: "摘下红苹果", color: "#ff3b30" },
+  { id: "p3-star", phase: 3, kind: "item", name: "点亮小星星", target: "小星星", action: "点亮小星星", color: "#ffe600" },
+];
+
+export const PHYSICAL_LEVEL: Level = {
+  id: "physical",
+  phase: 3,
+  kind: "physical",
+  name: "实物训练",
+  target: "贴了灯的实物",
+  action: "看见灯、伸手拿起",
+  color: "#ff2d2d",
+};
+
+export const levelsOf = (phase: PhaseId): Level[] => LEVELS.filter((l) => l.phase === phase);
+export const levelById = (id: string): Level | undefined =>
+  id === PHYSICAL_LEVEL.id ? PHYSICAL_LEVEL : LEVELS.find((l) => l.id === id);
+
+export const STAGE_NAME: Record<StageId, string> = {
+  1: "发现目标",
+  2: "认识物品",
+  3: "生活探索",
+  4: "实物训练",
+};
+
+export const MODE_NAME: Record<AccessMode, string> = {
+  slap: "拍击",
+  precise: "精准点击",
+  dwell: "悬停",
+};
+
+export const MODE_HINT: Record<AccessMode, string> = {
+  slap: "触碰屏幕任意位置",
+  precise: "点中目标才算",
+  dwell: "按住目标 1.2 秒",
+};
+
+// ---------------------------------------------------------------- 演示数据生成
 
 const DAY = 86_400_000;
 
@@ -134,61 +162,155 @@ const mulberry32 = (seed: number): (() => number) => {
   };
 };
 
-/** 造一条有"进步趋势"的演示历史，让看板不是空的 */
-function seedSessions(now: number): SessionRecord[] {
-  const sessions: SessionRecord[] = [];
+function buildDemoSessions(now: number): SessionRecord[] {
+  const out: SessionRecord[] = [];
   const count = 10;
+  const names = ["planet", "star", "colors", "chick", "car"];
 
   for (let i = 0; i < count; i += 1) {
     const rnd = mulberry32(1_000 + i * 37);
-    // 命中率从 0.42 稳步爬到 0.78
     const rate = 0.42 + (0.36 * i) / (count - 1);
-    const baseLatency = 9_000 - (5_000 * i) / (count - 1);
-    const trialsCount = 9 + Math.floor(rnd() * 5);
+    const base = 9_000 - (5_000 * i) / (count - 1);
+    const n = 9 + Math.floor(rnd() * 5);
     const trials: TrialRecord[] = [];
+    const level = levelById(names[Math.min(names.length - 1, Math.floor(i / 2))]!)!;
 
-    for (let k = 0; k < trialsCount; k += 1) {
+    for (let k = 0; k < n; k += 1) {
       const hit = rnd() < rate;
-      const latency = hit ? Math.round(baseLatency * (0.7 + rnd() * 0.9)) : null;
+      const latency = hit ? Math.round(base * (0.7 + rnd() * 0.9)) : null;
       trials.push({
-        id: `seed-${i}-${k}`,
+        id: `demo-${i}-${k}`,
         index: k,
         tStim: k * 30_000,
-        tFirstMotion: latency === null ? null : Math.round(latency * 0.45),
+        tFirstMotion: null,
         tHit: latency,
         tRelease: null,
         outcome: hit ? "hit" : "noResponse",
-        judge: hit ? (i < 6 ? "touch" : "motion") : null,
+        judge: hit ? "touch" : null,
         latencyMs: latency,
+        tFirstTouch: latency === null ? null : Math.round(latency * (0.55 + rnd() * 0.3)),
+        touchCount: latency === null ? 0 : 1 + Math.floor(rnd() * 2),
+        offsetRatio: hit ? Math.round(rnd() * 60) / 100 : null,
         pickedUpAtStart: false,
         abortReason: null,
       });
     }
 
     const startedAt = now - (count - i) * 2 * DAY + 10 * 3_600_000;
-    const stage = (i < 6 ? 1 : 2) as Stage;
-    sessions.push({
-      id: `seed-${i}`,
+    out.push({
+      id: `demo-${i}`,
       startedAt,
-      endedAt: startedAt + trialsCount * 30_000,
-      stage,
+      endedAt: startedAt + n * 30_000,
+      stage: level.phase,
+      levelId: level.id,
+      levelName: level.name,
       mode: "screen",
       trials,
       litMinutes: 0,
       brightness: 0,
     });
   }
-
-  return sessions;
+  return out;
 }
 
-export function createInitialState(now = Date.now()): AppState {
-  const sessions = seedSessions(now);
+// ---------------------------------------------------------------- 儿童端记录接入
+
+/**
+ * 把儿童端写下的一条记录转成家长端的数据模型。
+ *
+ * 儿童端只知道"这一回合用了多久才回应"，不知道刺激出现的绝对时间，
+ * 所以这里用累积时间造出时间轴——对算命中率和 P50/P90 没有影响，
+ * 因为这些指标只看 latencyMs。
+ */
+function fromGameRecord(record: GameRecord): SessionRecord {
+  const level = levelsOf(record.phase)[record.levelIndex];
+  let cursor = 0;
+  const trials: TrialRecord[] = record.rounds.map((round, index) => {
+    const raw = round.ok === false ? null : round.latencyMs;
+
+    if (raw === null) {
+      // 到时间没有回应：不计入潜伏期统计，但计入命中率分母
+      const tStim = cursor;
+      cursor = tStim + 30_000;
+      return {
+        id: `${record.id}-${index}`,
+        index,
+        tStim,
+        tFirstMotion: null,
+        tHit: null,
+        tRelease: null,
+        outcome: "noResponse",
+        judge: null,
+        latencyMs: null,
+        tFirstTouch: null,
+        touchCount: 0,
+        offsetRatio: null,
+        pickedUpAtStart: false,
+        abortReason: null,
+      };
+    }
+
+    const latencyMs = Math.max(0, Math.round(raw));
+    const tStim = cursor;
+    const tHit = tStim + latencyMs;
+    cursor = tHit + 1_500; // 奖励 + 回合间隔，只为了让时间戳有序，不参与统计
+    return {
+      id: `${record.id}-${index}`,
+      index,
+      tStim,
+      tFirstMotion: null,
+      tHit,
+      tRelease: null,
+      outcome: "hit",
+      judge: "touch",
+      latencyMs,
+      tFirstTouch: null,
+      touchCount: 1,
+      offsetRatio: null,
+      pickedUpAtStart: false,
+      abortReason: null,
+    };
+  });
+
   return {
-    schemaVersion: 1,
+    id: record.id,
+    startedAt: record.startedAt,
+    endedAt: record.endedAt || record.startedAt,
+    stage: record.phase,
+    levelId: level?.id ?? `game-${record.phase}-${record.levelIndex}`,
+    levelName: record.levelName || level?.name || "儿童端关卡",
+    mode: "screen",
+    trials,
+    litMinutes: 0,
+    brightness: 0,
+    origin: "game",
+  };
+}
+
+/** 合并儿童端记录，按 id 去重，旧的在前 */
+function mergeGameSessions(sessions: SessionRecord[]): SessionRecord[] {
+  const seen = new Set(sessions.map((s) => s.id));
+  const merged = [...sessions];
+
+  for (const record of readGameRecords()) {
+    if (seen.has(record.id)) continue;
+    const session = fromGameRecord(record);
+    if (session.trials.length === 0) continue;
+    seen.add(session.id);
+    merged.push(session);
+  }
+
+  return merged.sort((a, b) => a.startedAt - b.startedAt);
+}
+
+// ---------------------------------------------------------------- 初始状态
+
+export function createInitialState(): AppState {
+  return {
+    schemaVersion: 2,
     child: {
       nickname: "小满",
-      birthDate: new Date(now - 34 * 30 * DAY).toISOString().slice(0, 10),
+      birthDate: new Date(Date.now() - 34 * 30 * DAY).toISOString().slice(0, 10),
       cviPhase: 1,
       photosensitive: false,
       highLightSensitivity: false,
@@ -197,33 +319,37 @@ export function createInitialState(now = Date.now()): AppState {
       fieldBias: "left",
     },
     plan: {
-      stage: 2,
-      accessMode: "hover",
+      stage: 1,
+      levelId: "planet",
+      mode: "slap",
       judgeWindowMs: 30_000,
       maxMinutes: 15,
       maxRounds: 20,
       brightness: 75,
       preset: "red",
-      assetIds: ["o-car", "o-horse"],
       loop: { ...DEFAULT_LOOP },
     },
-    sessions,
-    usage: sessions.slice(-4).map((s) => ({ litMinutes: s.litMinutes, brightness: s.brightness })),
-    lastFullChargeAt: now - DAY,
+    // 默认没有任何训练记录：这是真实使用的起点，不是演示
+    sessions: mergeGameSessions([]),
+    usage: [],
+    lastFullChargeAt: null,
     selfTest: null,
+    isDemo: false,
   };
 }
 
 // ---------------------------------------------------------------- 存储
 
-const STORAGE_KEY = "microstar.state.v1";
+const STORAGE_KEY = "microstar.state.v2";
 
 function load(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
     const parsed = JSON.parse(raw) as AppState;
-    if (parsed.schemaVersion !== 1) return createInitialState();
+    if (parsed.schemaVersion !== 2) return createInitialState();
+    // 每次打开都重新扫一遍儿童端记录：孩子可能刚练完
+    parsed.sessions = mergeGameSessions(parsed.sessions ?? []);
     return parsed;
   } catch {
     return createInitialState();
@@ -247,8 +373,37 @@ class Store {
     this.emit();
   }
 
+  /** 载入演示数据。界面上必须同时显示「演示数据」标记。 */
+  loadDemo(): void {
+    this.state.sessions = buildDemoSessions(Date.now());
+    this.state.usage = [];
+    this.state.isDemo = true;
+    this.persist();
+    this.emit();
+  }
+
+  clearDemo(): void {
+    // 演示数据清掉后，把儿童端真实记录重新接回来
+    this.state.sessions = mergeGameSessions([]);
+    this.state.usage = [];
+    this.state.isDemo = false;
+    this.persist();
+    this.emit();
+  }
+
+  /** 清空全部数据。儿童端那份也一起清，否则下次打开又冒出来 */
   reset(): void {
+    clearGameRecords();
     this.state = createInitialState();
+    this.persist();
+    this.emit();
+  }
+
+  /** 重新从儿童端拉一次记录（家长端打开时调用） */
+  syncFromGame(): void {
+    const merged = mergeGameSessions(this.state.sessions);
+    if (merged.length === this.state.sessions.length) return;
+    this.state.sessions = merged;
     this.persist();
     this.emit();
   }
@@ -270,16 +425,8 @@ export const store = new Store();
 
 // ---------------------------------------------------------------- 选择器
 
-export const stageAssets = (): Asset[] => {
-  const plan = store.state.plan;
-  const chosen = plan.assetIds
-    .map((id) => assetById(id))
-    .filter((a): a is Asset => Boolean(a) && a!.stage === plan.stage);
-  return chosen.length > 0 ? chosen : assetsForStage(plan.stage).slice(0, 2);
-};
-
-export const sessionsOfStage = (stage: Stage): SessionRecord[] =>
-  store.state.sessions.filter((s) => s.stage === stage);
+export const currentLevel = (): Level =>
+  levelById(store.state.plan.levelId) ?? LEVELS[0]!;
 
 export const lastSession = (): SessionRecord | undefined =>
   [...store.state.sessions].sort((a, b) => b.startedAt - a.startedAt)[0];
@@ -290,5 +437,5 @@ export const todaySessions = (now = Date.now()): SessionRecord[] => {
   return store.state.sessions.filter((s) => s.startedAt >= start.getTime());
 };
 
-export const totalLitMinutes = (): number =>
-  store.state.usage.reduce((sum, e) => sum + e.litMinutes, 0);
+export const sessionsNewestFirst = (): SessionRecord[] =>
+  [...store.state.sessions].sort((a, b) => b.startedAt - a.startedAt);

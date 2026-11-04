@@ -1,131 +1,109 @@
-import { card, cardTitle, h } from "../lib/dom.js";
-import { store, STAGE_META, type AccessMode } from "../lib/store.js";
+import { card, h } from "../lib/dom.js";
+import { MODE_HINT, MODE_NAME, STAGE_NAME, store, type AccessMode } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
 
 const WINDOWS: [number, string][] = [
   [15_000, "15 秒"],
-  [30_000, "30 秒（默认）"],
+  [30_000, "30 秒"],
   [45_000, "45 秒"],
   [60_000, "60 秒"],
 ];
 
 const MINUTES: [number, string][] = [
   [10, "10 分钟"],
-  [15, "15 分钟（默认）"],
+  [15, "15 分钟"],
   [20, "20 分钟"],
 ];
 
-const ACCESS: [AccessMode, string][] = [
-  ["anywhereTap", "全屏拍击（重度）"],
-  ["hover", "接触悬停 1.2 秒"],
-  ["targetTap", "精准触碰"],
-];
+const MODES: AccessMode[] = ["slap", "precise", "dwell"];
 
 export const render: ScreenRenderer = (ctx) => {
   const plan = store.state.plan;
   const isPhysical = plan.stage === 4;
 
-  const accessCard = card(
-    cardTitle("判定与时长", STAGE_META[plan.stage].title),
-    selectRow("判定窗口", plan.judgeWindowMs, WINDOWS, (v) =>
+  const modeCard = card(
+    h("div", { class: "card-head" }, h("h2", null, "回应方式")),
+    h(
+      "div",
+      { class: "mode-row" },
+      ...MODES.map((m) =>
+        h(
+          "button",
+          {
+            class: `mode-chip ${plan.mode === m ? "selected" : ""}`,
+            onClick: () => {
+              store.update((s) => {
+                s.plan.mode = m;
+              });
+              ctx.rerender();
+            },
+          },
+          MODE_NAME[m],
+        ),
+      ),
+    ),
+    h("p", { class: "hint" }, MODE_HINT[plan.mode]),
+  );
+
+  const rhythmCard = card(
+    h("div", { class: "card-head" }, h("h2", null, "节奏")),
+    selectRow("等多久算没反应", plan.judgeWindowMs, WINDOWS, (v) =>
       store.update((s) => {
         s.plan.judgeWindowMs = v;
       }),
     ),
-    selectRow("单次上限", plan.maxMinutes, MINUTES, (v) =>
+    h("p", { class: "hint" }, "CVI 的反应可能慢到 20 秒，宁长不短。这个值会一起传给儿童模式。"),
+    selectRow("单次最多练（实物）", plan.maxMinutes, MINUTES, (v) =>
       store.update((s) => {
         s.plan.maxMinutes = v;
       }),
     ),
-    isPhysical
-      ? null
-      : selectRow("交互方式", plan.accessMode, ACCESS, (v) =>
-          store.update((s) => {
-            s.plan.accessMode = v;
-          }),
-        ),
-    h("p", { class: "hint" }, "CVI 的视觉延迟可以到 20 秒以上，窗口宁长不短。"),
+    h("p", { class: "hint" }, "儿童模式每关固定 3 回合，由它自己控制时长；这一项只约束实物训练。"),
   );
 
   const loopCard = isPhysical
     ? card(
-        cardTitle("自动回路", "第 4 阶"),
-        selectRow("每轮亮起", plan.loop.lightOnMs, [
-          [15_000, "15 秒"],
-          [30_000, "30 秒（默认）"],
-          [45_000, "45 秒"],
-        ], (v) =>
-          store.update((s) => {
-            s.plan.loop.lightOnMs = v;
-          }),
-        ),
-        selectRow("熄灭间隔", plan.loop.gapMs, [
-          [5_000, "5 秒"],
-          [8_000, "8 秒（默认）"],
-          [12_000, "12 秒"],
-        ], (v) =>
-          store.update((s) => {
-            s.plan.loop.gapMs = v;
-          }),
-        ),
-        selectRow("轮数", plan.loop.rounds, [
-          [6, "6 轮"],
-          [10, "10 轮（默认）"],
-          [15, "15 轮"],
-        ], (v) =>
-          store.update((s) => {
-            s.plan.loop.rounds = v;
-          }),
-        ),
-        h(
-          "p",
-          { class: "hint" },
-          "亮起时长不能短。亮 8 秒，孩子往往还没反应过来灯就灭了。",
-        ),
-      )
-    : null;
-
-  const lightCard = isPhysical
-    ? card(
-        cardTitle("灯光"),
-        h(
-          "div",
-          { class: "segmented swatches" },
-          ...(["red", "yellow", "warmWhite", "deepBlue"] as const).map((name) =>
-            h("button", {
-              class: `seg swatch ${name} ${plan.preset === name ? "active" : ""}`,
-              onClick: () => {
-                store.update((s) => {
-                  s.plan.preset = name;
-                });
-                ctx.rerender();
-              },
+        h("div", { class: "card-head" }, h("h2", null, "实物回路")),
+        selectRow(
+          "每轮亮灯",
+          plan.loop.lightOnMs,
+          [
+            [15_000, "15 秒"],
+            [30_000, "30 秒"],
+            [45_000, "45 秒"],
+          ],
+          (v) =>
+            store.update((s) => {
+              s.plan.loop.lightOnMs = v;
             }),
-          ),
         ),
-        h(
-          "label",
-          { class: "slider" },
-          h("span", null, "亮度"),
-          h("input", {
-            type: "range",
-            min: "25",
-            max: "128",
-            value: String(plan.brightness),
-            onInput: (e: Event) => {
-              const value = Number((e.target as HTMLInputElement).value);
-              store.update((s) => {
-                s.plan.brightness = value;
-              });
-              (e.target as HTMLInputElement)
-                .closest(".slider")
-                ?.querySelector("output")
-                ?.replaceChildren(document.createTextNode(String(value)));
-            },
-          }),
-          h("output", null, String(plan.brightness)),
+        selectRow(
+          "熄灭间隔",
+          plan.loop.gapMs,
+          [
+            [5_000, "5 秒"],
+            [8_000, "8 秒"],
+            [12_000, "12 秒"],
+          ],
+          (v) =>
+            store.update((s) => {
+              s.plan.loop.gapMs = v;
+            }),
         ),
-        h("p", { class: "hint" }, "亮度越高越费电，也越容易惹眼睛。75 是续航和可见性的甜点。"),
+        selectRow(
+          "轮数",
+          plan.loop.rounds,
+          [
+            [6, "6 轮"],
+            [10, "10 轮"],
+            [15, "15 轮"],
+          ],
+          (v) =>
+            store.update((s) => {
+              s.plan.loop.rounds = v;
+            }),
+        ),
+        h("p", { class: "hint" }, "亮灯时间不能短，孩子可能要好一会儿才看见。"),
       )
     : null;
 
@@ -136,18 +114,19 @@ export const render: ScreenRenderer = (ctx) => {
       h(
         "header",
         { class: "session-head" },
-        h("button", { class: "icon-btn", onClick: () => ctx.navigate("data") }, "←"),
-        h("div", { class: "session-title" }, h("strong", null, "调整计划"), h("span", null, STAGE_META[plan.stage].title)),
+        h("button", { class: "icon-btn", onClick: () => ctx.navigate("data") }, "‹"),
+        h(
+          "div",
+          { class: "session-title" },
+          h("strong", null, "调整参数"),
+          h("span", null, STAGE_NAME[plan.stage]),
+        ),
         h("span", { class: "spacer" }),
       ),
-      accessCard,
+      modeCard,
+      rhythmCard,
       loopCard,
-      lightCard,
-      h(
-        "button",
-        { class: "btn primary block", onClick: () => ctx.navigate("train") },
-        "保存并回到训练",
-      ),
+      h("button", { class: "btn primary block lg", onClick: () => ctx.navigate("train") }, "好了"),
     ),
   };
 };

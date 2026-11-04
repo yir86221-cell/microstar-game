@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 const app=document.querySelector('#app');
 const svg=(content,cls='')=>`<svg class="${cls}" viewBox="0 0 320 320" aria-hidden="true">${content}</svg>`;
 const arts={
@@ -22,15 +22,15 @@ function currentLevel(){const l=phaseLevels()[S.level];if(l.id!=='colors')return
 const phases=[{id:1,art:'circle',name:'发现目标'},{id:2,art:'horse',name:'认识物品'},{id:3,art:'cup',name:'生活探索'}];
 const modes=[{id:'slap',name:'拍击',description:'触碰屏幕任意位置即可回应'},{id:'precise',name:'精准点击',description:'点击目标物体，触碰其他位置不会触发'},{id:'dwell',name:'悬停',description:'接触目标并停留 1.2 秒，无需抬手'}];
 const S={page:'home',phase:1,level:0,mode:'slap',round:0,overlay:null,reward:0,hold:null,toast:'',toastRemaining:0,targetSlot:0};
-let parentPreviousOverlay=null;
+let parentPreviousOverlay=null,parentHoldStart=0,parentHoldMs=0;
 let audio=null,soundOn=null,lastTick=0;
 const icon={pause:'<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>',menu:'<svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>',back:'<svg viewBox="0 0 24 24"><path d="m15 4-8 8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>'};
 function sound(){if(!(soundOn??(S.phase===1)))return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const t=audio.currentTime;[523.25,659.25,783.99].forEach((f,i)=>{const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(audio.destination);g.gain.setValueAtTime(0,t+i*.11);g.gain.linearRampToValueAtTime(.04,t+i*.11+.015);g.gain.exponentialRampToValueAtTime(.001,t+i*.11+.2);o.start(t+i*.11);o.stop(t+i*.11+.22);});}catch{}}
 let framePending=false;
-function requestTick(){if(framePending||S.page!=='game'||S.overlay||!(S.hold||S.reward||S.toastRemaining||needsTaskTick()))return;framePending=true;requestAnimationFrame(t=>{framePending=false;if(!lastTick)lastTick=t;tick(t);});}
+function requestTick(){if(framePending||S.page!=='game'||S.overlay||!(S.hold||S.reward||S.toastRemaining||needsTaskTick()||S.round<3))return;framePending=true;requestAnimationFrame(t=>{framePending=false;if(!lastTick)lastTick=t;tick(t);});}
 function endHold(){S.hold=null;document.querySelector('.dwell-ring')?.remove();}
 function setOverlay(value){endHold();S.overlay=value;render();}
-function startLevel(index=S.level){endHold();S.page='game';S.level=index;S.round=0;S.reward=0;S.overlay=null;S.targetSlot=0;S.toast='';resetTask();render();}
+function startLevel(index=S.level){endHold();S.page='game';S.level=index;S.round=0;roundStartAt=Date.now();E.roundElapsed=0;S.reward=0;S.overlay=null;S.targetSlot=0;S.toast='';resetTask();recStart();render();}
 function tell(message){S.toast=message;S.toastRemaining=1800;const n=document.querySelector('.toast');if(n)n.textContent=message;}
 function home(){endHold();Object.assign(S,{page:'home',overlay:null,reward:0});render();}
 function phaseView(){endHold();Object.assign(S,{page:'phases',overlay:null,reward:0});render();}
@@ -40,19 +40,19 @@ function legacyGameView(){const l=currentLevel(),isColors=l.id==='colors',count=
 function instruction(){const l=currentLevel();if(S.mode==='slap')return `拍击屏幕，${l.action}`;if(S.mode==='precise')return `找到${l.target}，点一下吧！`;return `接触${l.target}并停留一会儿`}
 function menuView(){return `<div class="overlay"><section class="drawer" role="dialog" aria-modal="true" aria-label="游戏菜单"><div class="drawer-head"><div><h2>游戏菜单</h2><p>游戏已暂停</p></div><button class="close-btn" data-action="resume" aria-label="关闭菜单">×</button></div><div class="section-head"><h3>选择关卡</h3><button class="phase-link" data-action="phases">Phase ${['','I','II','III'][S.phase]} · 切换阶段</button></div><div class="preview-grid ${S.phase===1?'expanded-levels':''}">${phaseLevels().map((l,i)=>`<button class="preview ${S.level===i?'selected':''}" data-level="${i}" aria-pressed="${S.level===i}"><div class="preview-art">${l.kind?simpleArt(l.id,l.color):arts[l.id]()}</div><span class="preview-label">${S.phase===1?(i+1)+'. ':''}${l.name}</span>${S.level===i?'<span class="selected-mark">✓</span>':''}</button>`).join('')}</div>${S.phase===1?`<div class="menu-tools"><button class="small-btn" data-action="easier">${E.easy?'恢复标准':'降低难度'}</button><button class="small-btn" data-action="sound">${(soundOn??true)?'关闭':'开启'}声音</button></div>`:''}<h3 class="mode-head">交互模式</h3><div class="mode-row">${modes.map(m=>`<button class="mode-chip ${m.id===S.mode?'selected':''}" data-mode="${m.id}" aria-pressed="${m.id===S.mode}">${m.name}</button>`).join('')}</div><p class="mode-description">${modes.find(m=>m.id===S.mode).description}</p><button class="primary" data-action="resume">继续游戏</button></section></div>`;}
 function pauseView(){return `<div class="overlay modal-overlay"><section class="modal" role="dialog" aria-modal="true" aria-label="游戏已暂停"><div class="pause-symbol">Ⅱ</div><h2>休息一下吧</h2><p>游戏已暂停，准备好再继续。</p><button class="primary" data-action="resume">继续游戏</button><button class="secondary" data-action="menu">选择关卡</button><button class="small-btn" data-action="home">返回首页</button><button class="small-btn" data-action="sound">${(soundOn??(S.phase===1))?'关闭':'开启'}声音反馈</button></section></div>`;}
-function parentEntry(){return '<button class="parent-entry" data-action="parent" aria-haspopup="dialog" aria-expanded="'+(S.overlay==='parent')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 21v-3a7 7 0 0 1 14 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>家长入口</span></button>';}
-function parentView(){return '<div class="overlay modal-overlay"><section class="modal parent-modal" role="dialog" aria-modal="true" aria-label="家长空间"><h2>家长空间</h2><p>家长端功能正在完善中。</p><p>当前可以返回，继续刚才的探索。</p><button class="primary" data-action="parent-return">'+(S.page==='game'?'返回游戏':'返回上一页')+'</button></section></div>';}
+function parentEntry(){return '<button class="parent-entry" data-action="parent" aria-haspopup="dialog" aria-expanded="'+(S.overlay==='parent')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 21v-3a7 7 0 0 1 14 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>家长模式</span></button>';}
+function parentView(){return '<div class="overlay parent-overlay"><section class="parent-shell" role="dialog" aria-modal="true" aria-label="家长空间"><header class="parent-toolbar"><span>家长空间</span><button class="small-btn" data-action="parent-return">'+'回到儿童模式'+'</button></header><iframe class="parent-frame" src="parent/index.html" title="微动星瞳家长端" allow="bluetooth"></iframe></section></div>';}
 function openParent(){if(S.overlay==='parent')return;parentPreviousOverlay=S.overlay;setOverlay('parent');}
 function closeParent(){setOverlay(parentPreviousOverlay);parentPreviousOverlay=null;requestAnimationFrame(()=>document.querySelector('.parent-entry')?.focus({preventScroll:true}));}
 function render(){requestTick();app.innerHTML=(S.page==='home'?homeView():S.page==='phases'?phasesView():gameView())+(S.overlay==='menu'?menuView():S.overlay==='pause'?pauseView():S.overlay==='parent'?parentView():'')+parentEntry();if(S.overlay){requestAnimationFrame(()=>document.querySelector('[role="dialog"] button')?.focus({preventScroll:true}));}}
-function respond(){if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();S.reward=1500;S.round++;S.toast='';sound();render();}
-function action(name){switch(name){case'parent':openParent();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
+function respond(){if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();recRound(Date.now()-roundStartAt);S.reward=1500;S.round++;S.toast='';sound();render();}
+function action(name){switch(name){case'parent':if(parentHoldMs<900)return;openParent();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
 app.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.action){action(b.dataset.action);return;}if(S.overlay==='parent')return;if(b?.dataset.phase){S.phase=Number(b.dataset.phase);startLevel(0);return;}if(b?.dataset.level!==undefined){endHold();startLevel(Number(b.dataset.level));setOverlay('menu');return;}if(b?.dataset.mode){endHold();S.mode=b.dataset.mode;startLevel();setOverlay('menu');return;}if(S.page==='home'){phaseView();return;}if(isAdvanced()&&e.detail===0&&S.page==='game'&&!S.overlay){advancedInput(b?.dataset.object?b:null,null);return;}if(e.detail===0&&b?.dataset.object&&S.page==='game'&&!S.overlay){if((S.mode==='slap'&&currentLevel().id!=='colors')||b.dataset.object==='target')respond();}});
 app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
 window.addEventListener('pointermove',e=>{if(!S.hold||e.pointerId!==S.hold.id)return;const r=S.hold.node.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)endHold();});
 window.addEventListener('pointerup',e=>{if(S.hold?.id===e.pointerId)endHold();});window.addEventListener('pointercancel',endHold);window.addEventListener('blur',()=>{if(S.page==='game'&&!S.overlay)setOverlay('pause');else endHold();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.page==='game'&&!S.overlay)setOverlay('pause');});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();if(S.overlay==='parent'){closeParent();return;}if(S.page==='game')setOverlay(S.overlay===null?'pause':null);else if(S.page==='phases')home();return;}if(S.overlay&&e.key==='Tab'){const controls=[...document.querySelectorAll('[role="dialog"] button')];if(!controls.length)return;const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
-function tick(t){const dt=Math.min(t-lastTick,70);lastTick=t;if(S.page==='game'&&!S.overlay){advanceTask(dt);if(S.hold){S.hold.elapsed+=dt;document.querySelector('.dwell-ring')?.style.setProperty('--progress',`${Math.min(360,S.hold.elapsed/1200*360)}deg`);if(S.hold.elapsed>=1200)respond();}if(S.reward){S.reward=Math.max(0,S.reward-dt);if(S.reward===0){if(S.round>=3){if(S.level<phaseLevels().length-1)startLevel(S.level+1);else setOverlay('menu');}else {if(isAdvanced())resetRound();S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);}render();}}if(S.toastRemaining){S.toastRemaining=Math.max(0,S.toastRemaining-dt);if(!S.toastRemaining){S.toast='';const n=document.querySelector('.toast');if(n)n.textContent='';}}}if(S.page==='game'&&!S.overlay&&(S.hold||S.reward||S.toastRemaining||needsTaskTick()))requestTick();else lastTick=0;}
+function tick(t){const dt=Math.min(t-lastTick,70);lastTick=t;if(S.page==='game'&&!S.overlay){advanceTask(dt);if(!S.reward&&!S.hold){E.roundElapsed=(E.roundElapsed||0)+dt;if(E.roundElapsed>=ROUND_TIMEOUT_MS){timeoutRound();return;}}if(S.hold){S.hold.elapsed+=dt;document.querySelector('.dwell-ring')?.style.setProperty('--progress',`${Math.min(360,S.hold.elapsed/1200*360)}deg`);if(S.hold.elapsed>=1200)respond();}if(S.reward){S.reward=Math.max(0,S.reward-dt);if(S.reward===0){if(S.round>=3){if(S.level<phaseLevels().length-1)startLevel(S.level+1);else setOverlay('menu');}else {roundStartAt=Date.now();E.roundElapsed=0;if(isAdvanced())resetRound();S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);}render();}}if(S.toastRemaining){S.toastRemaining=Math.max(0,S.toastRemaining-dt);if(!S.toastRemaining){S.toast='';const n=document.querySelector('.toast');if(n)n.textContent='';}}}if(S.page==='game'&&!S.overlay&&(S.hold||S.reward||S.toastRemaining||needsTaskTick()||S.round<3))requestTick();else lastTick=0;}
 
 // P1-only additions. P2/P3 use the original game, assets, menus and task lists.
 const p1Task=(id,name,target,kind,focus,color)=>({id,name,target,kind,focus,color,action:'和'+target+'互动',feedback:'做得好！'});
@@ -64,12 +64,12 @@ const stageOne=[planetLevel,levels[3],colorLevel,
  p1Task('star','上下找星星','粉色星星','vertical','点击三次，带星星上下移动到终点','#ff79bf'),
  p1Task('circle','漂流星球','绿色圆球','drift','点击三次，推动星球加速到右侧终点','#39df96'),
  p1Task('circle','星光旅行','紫色圆球','path','横向移动、停顿、再向下移动','#a087ff')];
-const E={easy:false,running:false,started:false,elapsed:0,progress:0,boost:false,boostTime:0,boostFrom:0,boostTo:0};
+const E={easy:false,running:false,started:false,elapsed:0,progress:0,boost:false,boostTime:0,boostFrom:0,boostTo:0,roundElapsed:0};
 function isAdvanced(){return S.phase===1&&S.level>=3;}
 function isBoost(){return isAdvanced()&&['growth','vertical','drift'].includes(currentLevel().kind);}
 function dynamic(){return isAdvanced()&&['growth','vertical','peek','drift','path'].includes(currentLevel().kind);}
-function resetTask(){Object.assign(E,{running:false,started:false,elapsed:0,progress:0,boost:false,boostTime:0,boostFrom:0,boostTo:0});lastTick=0;}
-function resetRound(){resetTask();if(currentLevel().kind==='peek'&&S.round>0){E.running=true;E.started=true;E.elapsed=1200;}}
+function resetTask(){Object.assign(E,{running:false,started:false,elapsed:0,progress:0,boost:false,boostTime:0,boostFrom:0,boostTo:0,roundElapsed:0});lastTick=0;}
+function resetRound(){resetTask();roundStartAt=Date.now();if(currentLevel().kind==='peek'&&S.round>0){E.running=true;E.started=true;E.elapsed=1200;}}
 function needsTaskTick(){return isAdvanced()&&E.running;}
 function roundIndex(){return Math.min(2,Math.max(0,S.round-(S.reward?1:0)));}
 function shapeName(){return ['圆形','正方形','三角形'][roundIndex()];}
@@ -128,7 +128,7 @@ function respondAdvanced(){
  if(isBoost()){boostStep();return;}
  if(motionHidden()||(currentLevel().kind==='peek'&&E.started&&E.elapsed<2200))return;
  if(dynamic()&&!E.started){beginMotion();return;}
- endHold();E.running=false;S.reward=1500;S.round++;S.toast='';S.toastRemaining=0;sound();render();
+ endHold();recRound(Date.now()-roundStartAt);E.running=false;S.reward=1500;S.round++;S.toast='';S.toastRemaining=0;sound();render();
 }
 function advancedInput(node,pointer){
  if(S.reward||S.overlay||E.boost||motionHidden())return;
@@ -155,3 +155,37 @@ function advanceTask(dt){
 }
 
 render();
+/* 家长入口改为长按触发：短按不响应，避免孩子误触 */
+document.addEventListener('pointerdown',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){parentHoldStart=Date.now();b.classList.add('holding');}},true);
+document.addEventListener('pointerup',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){if(parentHoldStart)parentHoldMs=Date.now()-parentHoldStart;parentHoldStart=0;b.classList.remove('holding');}},true);
+document.addEventListener('pointercancel',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){parentHoldStart=0;parentHoldMs=0;b.classList.remove('holding');}},true);
+/* 家长端弹窗里的「开始训练」交回儿童模式：约定一条同源 postMessage */
+window.addEventListener('message',e=>{
+ if(e.origin!==location.origin)return;
+ const d=e.data;
+ if(!d||d.type!=='microstar:start-level')return;
+ const phase=Math.max(1,Math.min(3,Number(d.phase)||1));
+ const list=phase===1?stageOne:levels;
+ const index=Math.max(0,Math.min(list.length-1,Number(d.index)||0));
+ const mode=['slap','precise','dwell'].includes(d.mode)?d.mode:'slap';
+ const t=Number(d.timeoutMs);if(isFinite(t))ROUND_TIMEOUT_MS=Math.max(10000,Math.min(90000,t));
+ parentPreviousOverlay=null;
+ S.phase=phase;S.mode=mode;
+ startLevel(index);
+});
+/* ---- 训练记录桥：把每关成绩写进 localStorage，家长端读取同一份 ---- */
+var roundStartAt=0,currentRec=null;
+var ROUND_TIMEOUT_MS=30000;
+var GAME_RECORD_KEY='microstar.game.sessions';
+function recStart(){currentRec={id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),startedAt:Date.now(),phase:S.phase,levelIndex:S.level,levelName:(phaseLevels()[S.level]||{}).name||'',mode:S.mode,rounds:[]};roundStartAt=Date.now();}
+function recSave(){if(!currentRec||!currentRec.rounds.length)return;currentRec.endedAt=Date.now();try{var a=JSON.parse(localStorage.getItem(GAME_RECORD_KEY)||'[]');var i=-1;for(var k=0;k<a.length;k++){if(a[k]&&a[k].id===currentRec.id){i=k;break;}}if(i>=0){a[i]=currentRec;}else{a.push(currentRec);}localStorage.setItem(GAME_RECORD_KEY,JSON.stringify(a.slice(-40)));}catch(e){}}
+function timeoutRound(){
+ E.roundElapsed=0;recRound(null,true);
+ S.round++;
+ if(S.round>=3){if(S.level<phaseLevels().length-1)startLevel(S.level+1);else setOverlay('menu');render();requestTick();return;}
+ roundStartAt=Date.now();
+ if(isAdvanced())resetRound();
+ S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);
+ render();requestTick();
+}
+function recRound(latencyMs,isTimeout){if(!currentRec||currentRec.levelIndex!==S.level||currentRec.phase!==S.phase)recStart();currentRec.rounds.push(isTimeout?{latencyMs:null,ok:false}:{latencyMs:Math.max(0,Math.round(latencyMs)),ok:true});recSave();}
