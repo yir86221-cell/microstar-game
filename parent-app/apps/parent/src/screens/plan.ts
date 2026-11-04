@@ -1,5 +1,5 @@
 import { card, h } from "../lib/dom.js";
-import { MODE_HINT, MODE_NAME, STAGE_NAME, store, type AccessMode } from "../lib/store.js";
+import { MODE_HINT, MODE_NAME, STAGE_NAME, TARGET_SIZES, store, type AccessMode } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
 
 const WINDOWS: [number, string][] = [
@@ -114,23 +114,27 @@ export const render: ScreenRenderer = (ctx) => {
         h(
           "div",
           { class: "segmented" },
-          ...(["standard", "large"] as const).map((size) =>
+          ...TARGET_SIZES.map((size) =>
             h(
               "button",
               {
-                class: `seg ${plan.targetSize === size ? "active" : ""}`,
+                class: `seg ${plan.targetSize === size.id ? "active" : ""}`,
                 onClick: () => {
                   store.update((s) => {
-                    s.plan.targetSize = size;
+                    s.plan.targetSize = size.id;
                   });
                   ctx.rerender();
                 },
               },
-              size === "standard" ? "标准目标" : "更大目标",
+              size.label,
             ),
           ),
         ),
-        h("p", { class: "hint" }, "低视力或只看特定位置的孩子，用更大的目标更容易锁定。"),
+        h(
+          "p",
+          { class: "hint" },
+          `${TARGET_SIZES.find((t) => t.id === plan.targetSize)?.hint ?? ""}。只有三档，不做连续可调——换了档之后，之前的记录不能和新记录直接比。`,
+        ),
         h(
           "label",
           { class: "switch-row" },

@@ -16,6 +16,8 @@ export interface GameRoundRecord {
   latencyMs: number | null;
   /** true / 缺省 = 回应了；false = 到时间没有回应 */
   ok?: boolean;
+  /** 命中点离目标中心的距离 ÷ 目标半径。只在精准点击时记录 */
+  offsetRatio?: number | null;
 }
 
 export interface GameRecord {
@@ -27,6 +29,8 @@ export interface GameRecord {
   levelIndex: number;
   levelName: string;
   mode: "slap" | "precise" | "dwell";
+  /** 这一次用的目标大小 */
+  size?: "standard" | "large" | "huge";
   rounds: GameRoundRecord[];
 }
 

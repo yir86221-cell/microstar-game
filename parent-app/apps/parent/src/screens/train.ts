@@ -100,8 +100,9 @@ export const render: ScreenRenderer = (ctx) => {
               "div",
               { class: "level-text" },
               h("strong", null, lv.name),
-              h("span", null, lv.target),
+              h("span", null, lv.kind === "custom" ? "自家实物" : lv.target),
             ),
+            lv.kind === "custom" ? h("span", { class: "level-flag" }, "自制") : null,
           ),
         ),
       );
@@ -135,6 +136,13 @@ export const render: ScreenRenderer = (ctx) => {
       startText,
     ),
     h("button", { class: "link-btn", onClick: () => ctx.navigate("plan") }, "调整参数 ›"),
+    plan.stage === 3
+      ? h(
+          "button",
+          { class: "link-btn", onClick: () => ctx.navigate("extract") },
+          "拍一件家里的东西，做成自己的关卡 ›",
+        )
+      : null,
   );
 
   // 今天的状态

@@ -1321,8 +1321,68 @@ html.embedded #tabbar {
   }
 }
 
-/* Rounded surfaces: hierarchy comes from colour and space, not outlines. */
-:root{--bg:#08080b;--card:#16161e;--card-2:#22222e;--line:transparent;--accent:#c4afff;--ink:#f7f5ff;--muted:#aaa6bc;--radius:30px;--tabbar-h:78px}
-#root{max-width:860px}#view{padding:30px 24px 122px}.screen{gap:24px}.page-head{padding:10px 8px}.page-head h1{font-size:30px;letter-spacing:-.04em}.page-head .sub{line-height:1.7;max-width:38em}.card{border:0;padding:26px;gap:18px}.card-head h2{font-size:18px}.card-hint{color:#b9acd8}.status-strip{border:0;border-radius:26px;padding:18px 22px;background:#1d1929}.pill{padding:8px 14px}.btn,.icon-btn{border:0;border-radius:999px}.btn{min-height:50px;padding:12px 22px}.btn.primary{color:#211734;background:#c4afff;box-shadow:0 8px 28px #8c67d51a}.btn.ghost{background:#252130}.btn.small{min-height:44px}.rail{gap:12px;padding:2px}.rail-item{border:0;border-radius:28px;background:#191820;padding:20px 8px;gap:9px}.rail-item.active{background:#302440;color:#fff}.rail-index{width:42px;height:42px;background:#2c2738;color:#d7c5ff;font-size:17px}.rail-item:nth-child(2) .rail-index{background:#19352f;color:#8be3c6}.rail-item:nth-child(3) .rail-index{background:#382c21;color:#ffd093}.rail-item:nth-child(4) .rail-index{background:#302641;color:#dbc1ff}.rail-item.active .rail-index{background:#c4afff;color:#241735}.rail-title{font-size:13px}.asset-grid{gap:16px}.asset{border:0;border-radius:28px;background:#18171f;padding:18px;gap:12px}.asset.on{background:#302440}.asset-thumb{border-radius:22px;height:80px}.asset-check{border-radius:50%;background:#c4afff;color:#241735;padding:3px}.stat{border-radius:24px;padding:22px 10px;background:#211d2c}.stat strong{font-size:28px}.stat span{font-size:12px}.list-row,.kv,button.list-row.entry{border:0;padding:14px 0}.list-row+.list-row,.kv+.kv{margin-top:3px}.advice{border:0;padding:18px;border-radius:22px;background:#242030}.advice.tone-good{background:#152e29}.advice.tone-warn{background:#312719}.notice,.device-status,.status-strip,.chip{border:0;border-radius:24px}.notice{padding:16px 18px}.seg{border:0;border-radius:999px;background:#24212d}.seg.active{background:#c4afff;color:#241735}input,select{accent-color:#c4afff}select,input:not([type=checkbox]):not([type=range]){border:0!important;border-radius:18px!important;background:#272330!important;color:#f7f5ff!important;min-height:46px;padding:10px 14px}#tabbar{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:780px;border:0;border-radius:30px;height:76px;padding:8px;background:#24212ff2;box-shadow:0 12px 40px #0007}.tab{border-radius:24px;font-size:12px;gap:5px}.tab.active{background:#3a304d;color:#e4d6ff}.tab .icon{background:#ffffff0a;border-radius:50%;padding:3px;box-sizing:content-box}.icon svg{stroke-width:2.8}.session-head{border:0}.screen.session{max-width:860px}.session-head .icon-btn{background:#292331}.card .row{align-items:center}.card .row select{margin-left:auto}.hint{line-height:1.8}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #dfcbff;outline-offset:4px}
-@media(min-width:760px){#view{padding:40px 42px 130px}.asset-grid{grid-template-columns:repeat(4,1fr)}.card{padding:30px}.rail-item{padding:24px 12px}.rail-title{font-size:15px}}
-@media(max-width:430px){#view{padding:20px 16px 116px}.card{padding:22px}.page-head h1{font-size:26px}.rail{gap:7px}.rail-item{padding:16px 4px;border-radius:24px}.rail-sub{font-size:9px}.asset-grid{grid-template-columns:repeat(2,1fr)}.card-head{flex-wrap:wrap}}
+/* ---------------------------------------------------------------- 拍摄提纯 */
+
+.shot-frame {
+  aspect-ratio: 1;
+  background: #0b0b0d;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.shot-guide {
+  width: 62%;
+  aspect-ratio: 1;
+  border: 2px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #6a6a6a;
+  font-size: 13px;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.compare figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compare img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #000;
+  border-radius: 14px;
+}
+
+.compare figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ???????????? */
+.custom-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.custom-thumb {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #0a0a0c;
+}
