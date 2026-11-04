@@ -48,7 +48,7 @@ function render(){requestTick();app.innerHTML=(S.page==='home'?homeView():S.page
 function respond(){if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();recRound(Date.now()-roundStartAt);S.reward=1500;S.round++;S.toast='';sound();render();}
 function action(name){switch(name){case'parent':if(parentHoldMs<900)return;openParent();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
 app.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.action){action(b.dataset.action);return;}if(S.overlay==='parent')return;if(b?.dataset.phase){S.phase=Number(b.dataset.phase);startLevel(0);return;}if(b?.dataset.level!==undefined){endHold();startLevel(Number(b.dataset.level));setOverlay('menu');return;}if(b?.dataset.mode){endHold();S.mode=b.dataset.mode;startLevel();setOverlay('menu');return;}if(S.page==='home'){phaseView();return;}if(isAdvanced()&&e.detail===0&&S.page==='game'&&!S.overlay){advancedInput(b?.dataset.object?b:null,null);return;}if(e.detail===0&&b?.dataset.object&&S.page==='game'&&!S.overlay){if((S.mode==='slap'&&currentLevel().id!=='colors')||b.dataset.object==='target')respond();}});
-app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
+app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){markOffset(obj,e);respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
 window.addEventListener('pointermove',e=>{if(!S.hold||e.pointerId!==S.hold.id)return;const r=S.hold.node.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)endHold();});
 window.addEventListener('pointerup',e=>{if(S.hold?.id===e.pointerId)endHold();});window.addEventListener('pointercancel',endHold);window.addEventListener('blur',()=>{if(S.page==='game'&&!S.overlay)setOverlay('pause');else endHold();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.page==='game'&&!S.overlay)setOverlay('pause');});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();if(S.overlay==='parent'){closeParent();return;}if(S.page==='game')setOverlay(S.overlay===null?'pause':null);else if(S.page==='phases')home();return;}if(S.overlay&&e.key==='Tab'){const controls=[...document.querySelectorAll('[role="dialog"] button')];if(!controls.length)return;const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
@@ -170,16 +170,16 @@ window.addEventListener('message',e=>{
  const mode=['slap','precise','dwell'].includes(d.mode)?d.mode:'slap';
  const t=Number(d.timeoutMs);if(isFinite(t))ROUND_TIMEOUT_MS=Math.max(10000,Math.min(90000,t));
  if(typeof d.sound==='boolean')soundOn=d.sound;
- if(d.size==='large'||d.size==='standard')document.documentElement?.style?.setProperty('--target-scale',d.size==='large'?'1.2':'1');
+ if(d.size==='large'||d.size==='standard'||d.size==='huge'){const sc=d.size==='huge'?'1.48':d.size==='large'?'1.2':'1';TARGET_SIZE=d.size;document.documentElement.style.setProperty('--target-scale',sc);}
  parentPreviousOverlay=null;
  S.phase=phase;S.mode=mode;
  startLevel(index);
 });
 /* ---- 训练记录桥：把每关成绩写进 localStorage，家长端读取同一份 ---- */
-var roundStartAt=0,currentRec=null;
+var roundStartAt=0,currentRec=null,pendingOffset=null,TARGET_SIZE='standard';
 var ROUND_TIMEOUT_MS=30000;
 var GAME_RECORD_KEY='microstar.game.sessions';
-function recStart(){currentRec={id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),startedAt:Date.now(),phase:S.phase,levelIndex:S.level,levelName:(phaseLevels()[S.level]||{}).name||'',mode:S.mode,rounds:[]};roundStartAt=Date.now();}
+function recStart(){currentRec={id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),startedAt:Date.now(),phase:S.phase,levelIndex:S.level,levelName:(phaseLevels()[S.level]||{}).name||'',mode:S.mode,size:TARGET_SIZE,rounds:[]};roundStartAt=Date.now();}
 function recSave(){if(!currentRec||!currentRec.rounds.length)return;currentRec.endedAt=Date.now();try{var a=JSON.parse(localStorage.getItem(GAME_RECORD_KEY)||'[]');var i=-1;for(var k=0;k<a.length;k++){if(a[k]&&a[k].id===currentRec.id){i=k;break;}}if(i>=0){a[i]=currentRec;}else{a.push(currentRec);}localStorage.setItem(GAME_RECORD_KEY,JSON.stringify(a.slice(-40)));}catch(e){}}
 function timeoutRound(){
  E.roundElapsed=0;recRound(null,true);
@@ -190,4 +190,5 @@ function timeoutRound(){
  S.targetSlot=phaseLevels()[S.level].id==='colors'?Math.min(2,S.round):S.phase===1?0:S.round%(S.phase===2?2:3);
  render();requestTick();
 }
-function recRound(latencyMs,isTimeout){if(!currentRec||currentRec.levelIndex!==S.level||currentRec.phase!==S.phase)recStart();currentRec.rounds.push(isTimeout?{latencyMs:null,ok:false}:{latencyMs:Math.max(0,Math.round(latencyMs)),ok:true});recSave();}
+function recRound(latencyMs,isTimeout){if(!currentRec||currentRec.levelIndex!==S.level||currentRec.phase!==S.phase)recStart();currentRec.rounds.push(isTimeout?{latencyMs:null,ok:false}:{latencyMs:Math.max(0,Math.round(latencyMs)),ok:true,offsetRatio:pendingOffset});pendingOffset=null;recSave();}
+function markOffset(node,ev){try{if(!node||!ev||typeof ev.clientX!=='number')return;const r=node.getBoundingClientRect();if(!r||!r.width)return;const cx=r.left+r.width/2,cy=r.top+r.height/2;pendingOffset=Math.min(3,Math.hypot(ev.clientX-cx,ev.clientY-cy)/(r.width/2));}catch(e){}}

@@ -3,6 +3,8 @@ import { ageLabel } from "../lib/format.js";
 import {
   MODE_HINT,
   MODE_NAME,
+  defaultMode,
+  defaultTargetSize,
   store,
   type AccessMode,
   type FieldBias,
@@ -66,7 +68,21 @@ export const render: ScreenRenderer = () => {
       }),
     ),
     field("阶段", select(PHASES.map(([v, t]) => [String(v), t]), String(child.cviPhase), (v) => update({ cviPhase: Number(v) as PhaseId }))),
-    field("手部", select(HANDS.map(([v, t]) => [v, t]), child.handFunction, (v) => update({ handFunction: v as HandFunction }))),
+    field(
+      "手部",
+      select(HANDS.map(([v, t]) => [v, t]), child.handFunction, (v) => {
+        const next = v as HandFunction;
+        const wasDefault = store.state.plan.targetSize === defaultTargetSize(child.handFunction);
+        update({ handFunction: next });
+        // 家长没手动改过档位时，跟着手部功能走：握拳就自动放到「特大」
+        if (wasDefault) {
+          store.update((s) => {
+            s.plan.targetSize = defaultTargetSize(next);
+            s.plan.mode = defaultMode(next);
+          });
+        }
+      }),
+    ),
     field("爱看哪边", select(BIAS.map(([v, t]) => [v, t]), child.fieldBias, (v) => update({ fieldBias: v as FieldBias }))),
   );
 

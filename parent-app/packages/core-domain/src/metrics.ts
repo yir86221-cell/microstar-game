@@ -115,3 +115,68 @@ export function describeRate(rate: number | null): string {
   if (rate === null) return "还没有数据";
   return `${Math.round(rate * 100)}%`;
 }
+
+/**
+ * 最长连续串：连续命中 / 连续无反应各有多长。
+ *
+ * 命中率是平均数，会把"一直很稳"和"一好一坏来回跳"算成一样。
+ * 连续串能分开这两件事——尤其是"连续 4 次没有回应"，
+ * 往往不是能力问题，是注意断掉了。
+ */
+export interface StreakResult {
+  hit: number;
+  noResponse: number;
+}
+
+export function longestStreak(trials: readonly TrialRecord[]): StreakResult {
+  let bestHit = 0;
+  let bestMiss = 0;
+  let curHit = 0;
+  let curMiss = 0;
+
+  for (const trial of trials) {
+    if (!isCountedTrial(trial)) continue;
+    if (trial.outcome === "hit") {
+      curHit += 1;
+      curMiss = 0;
+      bestHit = Math.max(bestHit, curHit);
+    } else {
+      curMiss += 1;
+      curHit = 0;
+      bestMiss = Math.max(bestMiss, curMiss);
+    }
+  }
+  return { hit: bestHit, noResponse: bestMiss };
+}
+
+/**
+ * 反应时间的变异系数（标准差 ÷ 均值）。
+ *
+ * 比"平均反应多快"更能说明稳定性：均值一样，忽快忽慢和稳定输出
+ * 在康复上完全是两回事。样本少于 3 个不给结论。
+ */
+export function latencyCv(trials: readonly TrialRecord[]): number | null {
+  const values = trials
+    .filter((t) => t.outcome === "hit" && t.latencyMs !== null)
+    .map((t) => t.latencyMs as number);
+  if (values.length < 3) return null;
+
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  if (mean === 0) return null;
+  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance) / mean;
+}
+
+/**
+ * 有效触碰半径：命中点离目标中心的平均距离（目标半径为 1）。
+ *
+ * 只在精准点击模式下有意义。命中率会掩盖空间精度的进步——
+ * 从"擦边点到"到"稳稳点中"，命中率都是 100%，这个数才会动。
+ */
+export function averageOffset(trials: readonly TrialRecord[]): number | null {
+  const values = trials
+    .filter((t) => t.outcome === "hit" && typeof t.offsetRatio === "number")
+    .map((t) => t.offsetRatio as number);
+  if (values.length === 0) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}

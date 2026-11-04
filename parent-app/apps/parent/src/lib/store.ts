@@ -52,9 +52,35 @@ export interface AppPlan {
   loop: LoopParameters;
   /** 儿童模式的回应音效。默认关：CVI 孩子靠听会比靠看快，容易绕开视觉 */
   sound: boolean;
-  /** 目标大小。低视力或视野偏窄的孩子用更大的目标 */
-  targetSize: "standard" | "large";
+  /** 目标大小。三档固定，不做连续可调——否则历史数据没法比 */
+  targetSize: TargetSize;
 }
+
+/** 判定区域的三档。scale 会传给儿童端，改变目标的显示尺寸 */
+export type TargetSize = "standard" | "large" | "huge";
+
+export const TARGET_SIZES: { id: TargetSize; label: string; hint: string; scale: number }[] = [
+  { id: "standard", label: "标准", hint: "能准确够到", scale: 1 },
+  { id: "large", label: "大", hint: "手有点抖", scale: 1.2 },
+  { id: "huge", label: "特大", hint: "握拳、够不准", scale: 1.48 },
+];
+
+export const targetSizeLabel = (size: TargetSize | undefined): string =>
+  TARGET_SIZES.find((t) => t.id === size)?.label ?? "标准";
+
+/** 按手部功能给一个默认档：孩子不用先被要求准确点，先让他能点到 */
+export const defaultTargetSize = (hand: HandFunction): TargetSize => {
+  if (hand === "fist") return "huge";
+  if (hand === "spastic") return "large";
+  return "standard";
+};
+
+/** 按手部功能给一个默认回应方式 */
+export const defaultMode = (hand: HandFunction): AccessMode => {
+  if (hand === "fist") return "slap";
+  if (hand === "spastic") return "dwell";
+  return "precise";
+};
 
 export interface SessionRecord {
   id: string;
@@ -70,6 +96,8 @@ export interface SessionRecord {
   brightness: number;
   /** 这条记录从哪来：儿童端打出来的，还是家长端实物训练。 */
   origin?: "game" | "parent";
+  /** 这次用的目标大小。换档之后的老记录不能直接和新记录比 */
+  targetSize?: TargetSize;
 }
 
 export interface AppState {
@@ -270,7 +298,7 @@ function fromGameRecord(record: GameRecord): SessionRecord {
       latencyMs,
       tFirstTouch: null,
       touchCount: 1,
-      offsetRatio: null,
+      offsetRatio: typeof round.offsetRatio === "number" ? round.offsetRatio : null,
       pickedUpAtStart: false,
       abortReason: null,
     };
@@ -288,6 +316,7 @@ function fromGameRecord(record: GameRecord): SessionRecord {
     litMinutes: 0,
     brightness: 0,
     origin: "game",
+    targetSize: (record.size as TargetSize | undefined) ?? "standard",
   };
 }
 
@@ -325,7 +354,7 @@ export function createInitialState(): AppState {
     plan: {
       stage: 1,
       levelId: "planet",
-      mode: "slap",
+      mode: "dwell",
       judgeWindowMs: 30_000,
       maxMinutes: 15,
       maxRounds: 20,
@@ -333,7 +362,8 @@ export function createInitialState(): AppState {
       preset: "red",
       loop: { ...DEFAULT_LOOP },
       sound: false,
-      targetSize: "standard",
+      // 默认按手部功能给：有痉挛的孩子先让他能点到，不要求点准
+      targetSize: "large",
     },
     // 默认没有任何训练记录：这是真实使用的起点，不是演示
     sessions: mergeGameSessions([]),
