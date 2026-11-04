@@ -1,7 +1,21 @@
-import { latencyStats, percentile, summarize } from "@microstar/core-domain";
+import {
+  averageOffset,
+  latencyCv,
+  latencyStats,
+  longestStreak,
+  percentile,
+  summarize,
+} from "@microstar/core-domain";
 import { card, h } from "../lib/dom.js";
 import { dateLabel, pct, secs, timeLabel } from "../lib/format.js";
-import { MODE_NAME, STAGE_NAME, sessionsNewestFirst, store, type SessionRecord } from "../lib/store.js";
+import {
+  MODE_NAME,
+  STAGE_NAME,
+  sessionsNewestFirst,
+  store,
+  targetSizeLabel,
+  type SessionRecord,
+} from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
 
 interface Stats {
@@ -15,6 +29,9 @@ interface Stats {
   firstTouchP50: number | null;
   avgTouch: number | null;
   missCount: number;
+  streak: { hit: number; noResponse: number };
+  cv: number | null;
+  offset: number | null;
   durationMs: number;
 }
 
@@ -26,6 +43,7 @@ function statsOf(record: SessionRecord): Stats {
     .map((t) => t.tFirstTouch! - t.tStim);
   const touchCounts = record.trials.map((t) => t.touchCount ?? 0);
   const misses = record.trials.reduce((sum, t) => sum + (t.missCount ?? 0), 0);
+  const offset = averageOffset(record.trials);
 
   return {
     rounds: s.total,
@@ -41,6 +59,9 @@ function statsOf(record: SessionRecord): Stats {
       : null,
     missCount: misses,
     durationMs: record.endedAt - record.startedAt,
+    streak: longestStreak(record.trials),
+    cv: latencyCv(record.trials),
+    offset,
   };
 }
 
@@ -49,6 +70,14 @@ const durationLabel = (ms: number): string => {
   if (m < 1) return "不到 1 分钟";
   if (m < 60) return `${m} 分钟`;
   return `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
+};
+
+/** 变异系数越小越稳。不做精确数值的误导，给区间和一句话 */
+const CV_LABEL = (cv: number): string => {
+  const pctText = `${Math.round(cv * 100)}%`;
+  if (cv < 0.25) return `${pctText} · 很稳`;
+  if (cv < 0.5) return `${pctText} · 还可以`;
+  return `${pctText} · 忽快忽慢`;
 };
 
 export const render: ScreenRenderer = (ctx) => {
@@ -114,6 +143,13 @@ export const render: ScreenRenderer = (ctx) => {
       kv("首次触碰延迟", secs(s.firstTouchP50)),
       kv("每回合触碰次数", s.avgTouch === null ? "—" : String(s.avgTouch)),
       s.missCount > 0 ? kv("打偏次数", String(s.missCount)) : null,
+      kv("最长连续命中", `${s.streak.hit} 回合`),
+      s.streak.noResponse > 0 ? kv("最长连续无反应", `${s.streak.noResponse} 回合`) : null,
+      s.cv === null ? null : kv("反应稳定性（变异系数）", CV_LABEL(s.cv)),
+      s.offset === null
+        ? null
+        : kv("落点偏离", `${Math.round(s.offset * 100)}% 半径（越小越准）`),
+      kv("目标大小", targetSizeLabel(record.targetSize)),
       kv("练习时长", durationLabel(s.durationMs)),
       kv("回应方式", MODE_NAME[store.state.plan.mode]),
       record.mode === "physical"

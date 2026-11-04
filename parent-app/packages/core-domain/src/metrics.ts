@@ -84,6 +84,87 @@ export function fatigueSlope(trials: readonly TrialRecord[]): number | null {
   return rate(head) - rate(tail);
 }
 
+export interface StreakInfo {
+  /** 最长连续命中 */
+  longestHit: number;
+  /** 最长连续无反应 */
+  longestMiss: number;
+}
+
+/**
+ * 连续命中 / 连续无反应的最长串。
+ *
+ * 命中率是平均数，看不出"一直很稳"和"一好一坏来回跳"的区别。
+ * 连续 4 次没反应往往不是能力问题，是注意断掉了——这条比命中率更能说明状态。
+ */
+export function streaks(trials: readonly TrialRecord[]): StreakInfo {
+  let hit = 0;
+  let miss = 0;
+  let bestHit = 0;
+  let bestMiss = 0;
+
+  for (const t of trials) {
+    // abort 是家长跳过或孩子哭闹，不是表现：跳过它，既不打断连续也不计入
+    if (t.outcome === "abort") continue;
+
+    if (t.outcome === "hit") {
+      hit += 1;
+      miss = 0;
+      bestHit = Math.max(bestHit, hit);
+    } else if (t.outcome === "noResponse") {
+      miss += 1;
+      hit = 0;
+      bestMiss = Math.max(bestMiss, miss);
+    }
+  }
+
+  return { longestHit: bestHit, longestMiss: bestMiss };
+}
+
+/**
+ * 反应时间的变异系数（标准差 ÷ 均值）。
+ *
+ * 平均值一样，忽快忽慢和稳定输出在康复上是两回事。
+ * 少于 3 个样本不给结论——两个数的离散度没有意义。
+ */
+export function latencyCv(trials: readonly TrialRecord[]): number | null {
+  const values = trials
+    .filter((t) => t.outcome === "hit" && t.latencyMs !== null)
+    .map((t) => t.latencyMs!);
+
+  if (values.length < 3) return null;
+
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  if (mean <= 0) return null;
+
+  const variance =
+    values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance) / mean;
+}
+
+/** 稳定的判断口径，别让家长自己读小数 */
+export function describeCv(cv: number | null): string {
+  if (cv === null) return "样本太少";
+  if (cv <= 0.25) return "很稳";
+  if (cv <= 0.5) return "还可以";
+  return "忽快忽慢";
+}
+
+/**
+ * 平均落点偏离：命中点离目标中心的距离 ÷ 目标半径。
+ *
+ * 只在精准点击时有意义。从"擦边点到"到"稳稳点中"，命中率都是 100%，
+ * 只有这个数会动。
+ */
+export function averageOffset(trials: readonly TrialRecord[]): number | null {
+  const values = trials
+    .filter((t) => t.outcome === "hit" && typeof t.offsetRatio === "number")
+    .map((t) => t.offsetRatio as number);
+
+  if (values.length === 0) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
 export interface SessionSummary {
   total: number;
   hits: number;
@@ -93,11 +174,16 @@ export interface SessionSummary {
   p50: number | null;
   p90: number | null;
   fatigue: number | null;
+  longestHit: number;
+  longestMiss: number;
+  cv: number | null;
+  avgOffset: number | null;
 }
 
 export function summarize(trials: readonly TrialRecord[]): SessionSummary {
   const rate = hitRate(trials);
   const latency = latencyStats(trials);
+  const streak = streaks(trials);
   return {
     total: trials.length,
     hits: rate.hits,
@@ -107,6 +193,10 @@ export function summarize(trials: readonly TrialRecord[]): SessionSummary {
     p50: latency.p50,
     p90: latency.p90,
     fatigue: fatigueSlope(trials),
+    longestHit: streak.longestHit,
+    longestMiss: streak.longestMiss,
+    cv: latencyCv(trials),
+    avgOffset: averageOffset(trials),
   };
 }
 
@@ -114,4 +204,15 @@ export function summarize(trials: readonly TrialRecord[]): SessionSummary {
 export function describeRate(rate: number | null): string {
   if (rate === null) return "还没有数据";
   return `${Math.round(rate * 100)}%`;
+}
+
+/** 兼容旧调用：返回 {hit, noResponse} 形状 */
+export interface StreakResult {
+  hit: number;
+  noResponse: number;
+}
+
+export function longestStreak(trials: readonly TrialRecord[]): StreakResult {
+  const s = streaks(trials);
+  return { hit: s.longestHit, noResponse: s.longestMiss };
 }

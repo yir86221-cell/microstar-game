@@ -3,6 +3,8 @@ import { ageLabel } from "../lib/format.js";
 import {
   MODE_HINT,
   MODE_NAME,
+  defaultMode,
+  defaultTargetSize,
   store,
   type AccessMode,
   type FieldBias,
@@ -50,7 +52,7 @@ export const render: ScreenRenderer = () => {
   const profileCard = card(
     h("div", { class: "card-head" }, h("h2", null, "孩子"), h("span", { class: "card-hint" }, ageLabel(child.birthDate))),
     field(
-      "小名",
+      "昵称",
       h("input", {
         type: "text",
         value: child.nickname,
@@ -65,16 +67,45 @@ export const render: ScreenRenderer = () => {
         onChange: (e: Event) => update({ birthDate: (e.target as HTMLInputElement).value }),
       }),
     ),
-    field("阶段", select(PHASES.map(([v, t]) => [String(v), t]), String(child.cviPhase), (v) => update({ cviPhase: Number(v) as PhaseId }))),
-    field("手部", select(HANDS.map(([v, t]) => [v, t]), child.handFunction, (v) => update({ handFunction: v as HandFunction }))),
-    field("爱看哪边", select(BIAS.map(([v, t]) => [v, t]), child.fieldBias, (v) => update({ fieldBias: v as FieldBias }))),
+    field("CVI 阶段", select(PHASES.map(([v, t]) => [String(v), t]), String(child.cviPhase), (v) => update({ cviPhase: Number(v) as PhaseId }))),
+    field(
+      "手部功能",
+      select(HANDS.map(([v, t]) => [v, t]), child.handFunction, (v) => {
+        const next = v as HandFunction;
+        const wasDefault = store.state.plan.targetSize === defaultTargetSize(child.handFunction);
+        update({ handFunction: next });
+        // 家长没手动改过档位时，跟着手部功能走：握拳就自动放到「特大」
+        if (wasDefault) {
+          store.update((s) => {
+            s.plan.targetSize = defaultTargetSize(next);
+            s.plan.mode = defaultMode(next);
+          });
+        }
+      }),
+    ),
+    field("视野偏好", select(BIAS.map(([v, t]) => [v, t]), child.fieldBias, (v) => update({ fieldBias: v as FieldBias }))),
   );
 
   const safetyCard = card(
     h("div", { class: "card-head" }, h("h2", null, "安全")),
-    toggle("怕闪", "关掉闪烁，亮度调低", child.photosensitive, (v) => update({ photosensitive: v })),
-    toggle("怕亮", "亮度再压低一档", child.highLightSensitivity, (v) => update({ highLightSensitivity: v })),
-    toggle("不喜欢震动", "提示灯不震", child.tactileSensitive, (v) => update({ tactileSensitive: v })),
+    toggle(
+      "光敏性癫痫",
+      "有光敏癫痫史或正在服药。开启后禁用闪烁，亮度上限压到 64",
+      child.photosensitive,
+      (v) => update({ photosensitive: v }),
+    ),
+    toggle(
+      "强光敏感",
+      "无癫痫史，但对强光不适。亮度上限压到 96",
+      child.highLightSensitivity,
+      (v) => update({ highLightSensitivity: v }),
+    ),
+    toggle(
+      "触觉防御",
+      "对震动抗拒。提示灯不震动",
+      child.tactileSensitive,
+      (v) => update({ tactileSensitive: v }),
+    ),
   );
 
   const modeCard = card(

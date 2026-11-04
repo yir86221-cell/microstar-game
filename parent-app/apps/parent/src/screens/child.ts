@@ -205,6 +205,8 @@ export const render: ScreenRenderer = (ctx) => {
         trials,
         litMinutes: 0,
         brightness: 0,
+        origin: "parent",
+        targetSize: plan.targetSize,
       };
       store.update((s) => {
         s.sessions.push(record);
