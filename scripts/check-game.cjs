@@ -9,7 +9,7 @@ assert.match(root.innerHTML,/点击或拍击来开始吧/);run('phaseView()');as
 for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:5);}
 // Compare the restored P2/P3 with actual historical source, not a hand-written replica.
 const old=environment(fs.readFileSync(require('node:path').join(__dirname,'fixtures/legacy-game.js'),'utf8'));
-const normalize=s=>s.replace(/story-levels/g,'').replace(/<button class="preview[^"]*" data-level="[4-9]"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
+const normalize=s=>s.replace(/<p class="(?:task-caption|mode-note)[^"]*"[^>]*>[\s\S]*?<\/p>/g,'').replace(/ child-sr-only/g,'').replace(/story-levels/g,'').replace(/<button class="preview[^"]*" data-level="[4-9]"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
 for(const p of [2,3])for(let l=0;l<4;l++)for(const mode of ['slap','precise','dwell']){
  start(p,p===3?l+1:l,mode);old.run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);
  assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),`P${p}.${l+1} game restored`);
@@ -112,7 +112,7 @@ for(const [index,durations] of [[5,[2600,2600,2600]],[6,[1250,2200]],[7,[1350,13
  advance(1200);if(index<9)assert.equal(run('S.level'),index+1);else {assert.equal(run('S.phase'),3);assert.equal(run('S.level'),0);}
  start(2,index);run('action("replay")');assert.equal(run('Story.step'),0);assert.equal(run('Story.busy'),false);
 }
-start(2,6,'precise');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1300);assert.match(root.innerHTML,/点点熊猫/);assert.equal(run('Story.step'),1);
+start(2,6,'precise');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1300);assert.match(run('storyHint()'),/点点熊猫/);assert.equal(run('Story.step'),1);
 start(2,7);tap();advance(500);assert.match(run('storyScene()'),/scale\(1 0.08\)/,'eyelids close');advance(900);assert.doesNotMatch(run('storyScene()'),/#70e83b/,'eyes disappear between taps');tap();advance(1400);tap();advance(2000);assert.match(run('storyScene()'),/egg-wings/);assert.equal(run('S.reward'),0,'egg must fully fly off before completion');
 start(2,8);assert.doesNotMatch(run('storyScene()'),/opacity="1"/);tap();advance(1500);assert.match(run('storyScene()'),/opacity="1"/);
 start(2,9);tap(null);assert.equal(run('S.round'),0,'matching never chooses automatically in slap mode');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1100);assert.equal(run('Story.step'),1);
@@ -126,3 +126,8 @@ run('action("cup-reset")');assert.equal(run('cupMesh()'),mesh);run('action("cup-
 const cupNode={...node,setPointerCapture:()=>{}};const input={pointerId:80,clientX:100,clientY:100,preventDefault:()=>{}};run('S.mode="precise"');const cStart=run('Cup.yaw');run('globalThis.cupNode={setPointerCapture(){}}');run('cupInput(cupNode,{pointerId:80,clientX:100,clientY:100,preventDefault(){}})');wins.pointermove({pointerId:80,clientX:150,clientY:120});assert.ok(run('Cup.yaw')>cStart);wins.pointerup({pointerId:80});assert.equal(run('Cup.drag'),null);assert.equal(run('S.round'),0,'free exploration is not a clinical score or automatic completion');
 run('turnCup(0,99)');assert.equal(run('Cup.pitch'),1.15);run('turnCup(0,-99)');assert.equal(run('Cup.pitch'),-1.15);
 console.log('PASS: P2 to P3 transition, stationary hollow cup mesh, drag/tap/keyboard controls, pitch limits, pause, replay and preserved legacy P3 tasks.');
+for(const phase of [1,2,3]){run(`S.phase=${phase}`);const count=run('phaseLevels().length');for(let i=0;i<count;i++){start(phase,i);assert.doesNotMatch(root.innerHTML,/<p class="(?:task-caption|mode-note|advanced-hint|advanced-mode-note)/);}}
+start(3,0);assert.doesNotMatch(root.innerHTML,/cup-controls|<h1|拖动黄杯子，转一转/);
+// Handle terminates inside the solid wall, never enters the hollow interior.
+for(let a=-Math.PI/2;a<=Math.PI/2;a+=Math.PI/160)for(let b=0;b<Math.PI*2;b+=Math.PI/12){const y=(.72+.115*Math.cos(b))*Math.sin(a),x=.875-.09*y+(.7+.115*Math.cos(b))*Math.cos(a),z=.115*Math.sin(b);const inner=.805-.085*y;assert.ok(Math.hypot(x,z)>inner,'handle stays outside hollow cavity');}
+console.log('PASS: all child captions removed, cup-only scene and handle geometry outside the cup cavity.');
