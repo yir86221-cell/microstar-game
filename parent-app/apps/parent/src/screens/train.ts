@@ -203,6 +203,8 @@ function startTraining(ctx: { navigate: (p: string) => void }): void {
       mode: plan.mode,
       // 判定窗口交给儿童端：到时间没有回应就记一次「无反应」
       timeoutMs: plan.judgeWindowMs,
+      sound: plan.sound,
+      size: plan.targetSize,
     },
     location.origin,
   );

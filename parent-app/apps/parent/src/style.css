@@ -1142,3 +1142,181 @@ html.embedded #tabbar {
   background: rgba(168, 213, 200, 0.16);
   color: var(--accent);
 }
+
+/* ---------------------------------------------------------------- 圆润化 */
+
+/*
+ * 借鉴组员的视觉规范：不画边框，靠背景层次和留白分组；按钮一律胶囊。
+ * 配色仍用本项目的马卡龙色（薄荷绿主色），不采用紫色。
+ */
+:root {
+  --line: transparent;
+  --radius: 28px;
+  --blue: #a9cde8;
+  --tabbar-h: 70px;
+}
+
+.card,
+.asset,
+.rail-item,
+.status-strip,
+.device-status,
+.chip,
+.notice,
+.advice,
+.stat,
+.pill {
+  border: 0;
+}
+
+.card {
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.card-head h2 {
+  font-size: 17px;
+}
+
+.btn,
+.icon-btn,
+.seg {
+  border: 0;
+}
+
+.btn {
+  border-radius: 999px;
+  min-height: 50px;
+  padding: 12px 22px;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #10231d;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(168, 213, 200, 0.12);
+}
+
+.btn.ghost {
+  background: var(--panel-2);
+}
+
+.btn.small {
+  min-height: 44px;
+}
+
+.icon-btn {
+  border-radius: 50%;
+  background: var(--panel-2);
+}
+
+.seg {
+  border-radius: 999px;
+  background: var(--panel-2);
+}
+
+.seg.active {
+  background: var(--accent);
+  color: #10231d;
+}
+
+.rail-item {
+  border-radius: 26px;
+  background: var(--panel-2);
+  padding: 18px 8px;
+}
+
+.rail-item.active {
+  background: rgba(168, 213, 200, 0.16);
+  color: var(--ink);
+}
+
+.rail-item.active .rail-index {
+  background: var(--accent);
+  color: #10231d;
+}
+
+.asset {
+  border-radius: 24px;
+}
+
+.asset.on {
+  background: rgba(168, 213, 200, 0.14);
+}
+
+.stat {
+  border-radius: 22px;
+}
+
+.list-row,
+.kv,
+button.list-row.entry,
+.field,
+.switch-row {
+  border-bottom: 0;
+}
+
+.field select,
+.field input[type="text"],
+.field input[type="date"] {
+  border: 0;
+  border-radius: 16px;
+  background: var(--panel-2);
+  min-height: 46px;
+}
+
+input,
+select {
+  accent-color: var(--accent);
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(168, 213, 200, 0.6);
+  outline-offset: 3px;
+}
+
+#view {
+  padding-bottom: calc(var(--tabbar-h) + 52px);
+}
+
+#tabbar,
+html.embedded #tabbar {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: calc(100% - 28px);
+  max-width: 760px;
+  height: var(--tabbar-h);
+  bottom: max(10px, env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 26px;
+  padding: 6px;
+  background: rgba(30, 33, 36, 0.92);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.tab {
+  border-radius: 20px;
+  font-size: 11px;
+}
+
+.tab.active {
+  background: rgba(168, 213, 200, 0.16);
+  color: var(--accent);
+}
+
+@media (min-width: 820px) {
+  .card {
+    padding: 26px;
+  }
+
+  .btn {
+    min-height: 52px;
+  }
+
+  .btn.lg {
+    min-height: 58px;
+  }
+}

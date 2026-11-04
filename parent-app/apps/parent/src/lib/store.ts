@@ -50,6 +50,10 @@ export interface AppPlan {
   brightness: number;
   preset: LightPresetName;
   loop: LoopParameters;
+  /** 儿童模式的回应音效。默认关：CVI 孩子靠听会比靠看快，容易绕开视觉 */
+  sound: boolean;
+  /** 目标大小。低视力或视野偏窄的孩子用更大的目标 */
+  targetSize: "standard" | "large";
 }
 
 export interface SessionRecord {
@@ -328,6 +332,8 @@ export function createInitialState(): AppState {
       brightness: 75,
       preset: "red",
       loop: { ...DEFAULT_LOOP },
+      sound: false,
+      targetSize: "standard",
     },
     // 默认没有任何训练记录：这是真实使用的起点，不是演示
     sessions: mergeGameSessions([]),

@@ -169,6 +169,8 @@ window.addEventListener('message',e=>{
  const index=Math.max(0,Math.min(list.length-1,Number(d.index)||0));
  const mode=['slap','precise','dwell'].includes(d.mode)?d.mode:'slap';
  const t=Number(d.timeoutMs);if(isFinite(t))ROUND_TIMEOUT_MS=Math.max(10000,Math.min(90000,t));
+ if(typeof d.sound==='boolean')soundOn=d.sound;
+ if(d.size==='large'||d.size==='standard')document.documentElement.style.setProperty('--target-scale',d.size==='large'?'1.2':'1');
  parentPreviousOverlay=null;
  S.phase=phase;S.mode=mode;
  startLevel(index);

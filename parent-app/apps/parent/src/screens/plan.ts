@@ -107,6 +107,52 @@ export const render: ScreenRenderer = (ctx) => {
       )
     : null;
 
+  const audioCard = isPhysical
+    ? null
+    : card(
+        h("div", { class: "card-head" }, h("h2", null, "儿童模式里怎么呈现")),
+        h(
+          "div",
+          { class: "segmented" },
+          ...(["standard", "large"] as const).map((size) =>
+            h(
+              "button",
+              {
+                class: `seg ${plan.targetSize === size ? "active" : ""}`,
+                onClick: () => {
+                  store.update((s) => {
+                    s.plan.targetSize = size;
+                  });
+                  ctx.rerender();
+                },
+              },
+              size === "standard" ? "标准目标" : "更大目标",
+            ),
+          ),
+        ),
+        h("p", { class: "hint" }, "低视力或只看特定位置的孩子，用更大的目标更容易锁定。"),
+        h(
+          "label",
+          { class: "switch-row" },
+          h(
+            "div",
+            { class: "list-main" },
+            h("strong", null, "回应音效"),
+            h("span", { class: "muted" }, "默认关。CVI 孩子靠听会比靠看快，容易绕开视觉"),
+          ),
+          h("input", {
+            type: "checkbox",
+            checked: plan.sound,
+            onChange: (e: Event) => {
+              const on = (e.target as HTMLInputElement).checked;
+              store.update((s) => {
+                s.plan.sound = on;
+              });
+            },
+          }),
+        ),
+      );
+
   return {
     el: h(
       "div",
@@ -125,6 +171,7 @@ export const render: ScreenRenderer = (ctx) => {
       ),
       modeCard,
       rhythmCard,
+      audioCard,
       loopCard,
       h("button", { class: "btn primary block lg", onClick: () => ctx.navigate("train") }, "好了"),
     ),

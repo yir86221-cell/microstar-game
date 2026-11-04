@@ -76,3 +76,4 @@
 .parent-toolbar{padding:0 18px;min-height:56px;border-bottom:1px solid #262626;background:#111}
 .parent-frame{border-radius:0 0 23px 23px}
 @media (max-width:640px),(max-height:520px){.parent-overlay{padding:8px}.parent-shell{border-radius:16px}.parent-frame{border-radius:0 0 15px 15px}}
+.object .art,.moving-anchor .art{zoom:var(--target-scale,1)}
