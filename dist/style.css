@@ -81,3 +81,22 @@
 @media(orientation:portrait){.pig-field{inset:28% 0 27%}.pig-runner{width:52cqw}.pig-grass{left:17%;width:27cqw}.pig-game .advanced-title{top:17%;left:5%;right:5%;text-align:center}}
 @media(prefers-reduced-motion:reduce){.pig-running .pig-art{animation:none}}
 .pig-target{transform:scale(var(--target-scale,1));transform-origin:center}
+/* P2 story scenes share a 5:3 stage so trajectories and resting contacts stay stable. */
+.story-field{position:absolute;left:5%;top:23%;width:90%;aspect-ratio:5/3}
+.scene-object{position:absolute;aspect-ratio:1;padding:0;transform:translate(-50%,-50%) scale(var(--target-scale,1));touch-action:none}
+.scene-apple{position:absolute;width:10.5%;aspect-ratio:1;pointer-events:none}
+.bamboo-piece{position:absolute;width:17%;pointer-events:none}
+.egg-wings{position:absolute;left:50%;width:49%;aspect-ratio:500/320;transform:translate(-50%,-50%);pointer-events:none}
+.shadow-sample{position:absolute;left:50%;top:19%;width:22%;aspect-ratio:1;transform:translate(-50%,-50%)}
+.shadow-pad{background:#d9dedb;border-radius:24px;padding:2%;transform:translate(-50%,-50%)}
+.shadow-pad svg *{fill:#050505!important;stroke:none!important}
+.shadow-pad.matched{background:#8ddd9a;box-shadow:0 0 25px #4be77a88}
+.scene-glow{filter:drop-shadow(0 0 16px #ff293a66)}
+.panda-chew{animation:panda-chew .4s ease-in-out infinite alternate}
+@keyframes panda-chew{to{transform:translate(-50%,-48%) scale(var(--target-scale,1)) rotate(2deg)}}
+.story-game:has(~ .overlay) .panda-chew{animation-play-state:paused}
+.story-levels{max-height:53cqh;overflow-y:auto;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(orientation:portrait){.story-field{top:32%;left:2%;width:96%}.story-game .advanced-title{top:20%;left:5%;right:5%;text-align:center}}
+@media(prefers-reduced-motion:reduce){.panda-chew{animation:none}}
+.story-field{left:50%;width:min(90cqw,100cqh);transform:translateX(-50%)}
+@media(orientation:portrait){.story-field{left:50%;width:96cqw}}

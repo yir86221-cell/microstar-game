@@ -6,10 +6,10 @@ function start(p,l,mode='slap'){run(`S.phase=${p};S.mode=${JSON.stringify(mode)}
 const node={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};
 function tap(target=node,id=1){listeners.pointerdown({button:0,pointerId:id,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});}
 assert.match(root.innerHTML,/点击或拍击来开始吧/);run('phaseView()');assert.match(root.innerHTML,/Phase III/);
-for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?5:4);}
+for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:4);}
 // Compare the restored P2/P3 with actual historical source, not a hand-written replica.
 const old=environment(fs.readFileSync(require('node:path').join(__dirname,'fixtures/legacy-game.js'),'utf8'));
-const normalize=s=>s.replace(/<button class="preview[^"]*" data-level="4"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
+const normalize=s=>s.replace(/story-levels/g,'').replace(/<button class="preview[^"]*" data-level="[4-9]"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
 for(const p of [2,3])for(let l=0;l<4;l++)for(const mode of ['slap','precise','dwell']){
  start(p,l,mode);old.run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);
  assert.equal(normalize(root.innerHTML),normalize(old.root.innerHTML),`P${p}.${l+1} game restored`);
@@ -51,7 +51,7 @@ console.log('PASS: P2/P3 historical rendering and input regression, restored sta
 for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
 start(1,4);run("setOverlay('menu');action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
 
-for(const p of [1,2,3]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:p===2?4:3);run('S.round=3;S.reward=1');advance(100);if(p===1){assert.equal(run('S.phase'),2);assert.equal(run('S.level'),0);assert.equal(run('S.overlay'),null);}else assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
+for(const p of [1,2,3]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:p===2?9:3);run('S.round=3;S.reward=1');advance(100);if(p===1){assert.equal(run('S.phase'),2);assert.equal(run('S.level'),0);assert.equal(run('S.overlay'),null);}else assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
 
 start(2,1);run("respond();action('parent')");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
 
@@ -88,8 +88,8 @@ run('setOverlay("pause")');advance(1500);assert.equal(run('Pig.elapsed'),wagElap
 advance(700);assert.equal(run('Pig.phase'),'run');assert.equal(run('S.reward'),0,'tail wag is not success');
 advance(1000);assert.ok(run('Pig.x')>54);assert.equal(run('Pig.phase'),'run');assert.equal(run('S.reward'),0,'success waits until full exit');
 const runElapsed=run('Pig.elapsed');run("action('parent')");advance(1000);assert.equal(run('Pig.elapsed'),runElapsed);run("action('parent-return')");advance(1350);
-assert.equal(run('Pig.phase'),'complete');assert.equal(run('Pig.x'),149);assert.ok(run('S.reward')>0);advance(700);assert.equal(run('S.overlay'),'menu');
-assert.match(root.innerHTML,/再玩一次/);
+assert.equal(run('Pig.phase'),'complete');assert.equal(run('Pig.x'),149);assert.ok(run('S.reward')>0);advance(700);assert.equal(run('S.level'),5);assert.equal(run('S.overlay'),null);
+start(2,4);
 const pigRecords=run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))");assert.equal(pigRecords.at(-1).name,'小猪快跑');assert.equal(pigRecords.at(-1).responses,1);
 run('action("resume")');assert.equal(run('Pig.phase'),'idle','completion menu starts a fresh pig');
 run('action("replay")');assert.equal(run('Pig.phase'),'idle');assert.equal(run('Pig.x'),54);assert.equal(run('S.round'),0);
@@ -97,3 +97,24 @@ start(2,4,'dwell');tap(node,22);advance(500);wins.pointermove({pointerId:22,clie
 start(2,4);tap(null);assert.equal(run('Pig.phase'),'wag','slap mode remains available');
 start(2,3);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),4,'P2 fourth task advances into new fifth task');assert.equal(run('Pig.phase'),'idle');
 console.log('PASS: direct P1 to P2 handoff, P2 fifth task wag-before-run, full-exit success, repeat guard, pause/parent/replay, all three input modes and one-response record.');
+// Story animations settle before counting completion; no input can skip an in-flight step.
+for(const [index,durations] of [[5,[2600,2600,2600]],[6,[1250,2200]],[7,[1350,1350,2400]],[8,[1450,1450,1450]],[9,[1000,1000,1000]]]){
+ start(2,index,'precise');const idle=root.innerHTML;advance(3000);assert.equal(run('Story.step'),0);assert.equal(run('Story.busy'),false);
+ tap(null);assert.equal(run('S.round'),0,'precise background does not activate scene');
+ for(let i=0;i<durations.length;i++){
+  tap();assert.equal(run('S.round'),i+1);assert.equal(run('Story.busy'),true);tap();assert.equal(run('S.round'),i+1);
+  advance(250);const frozen=run('Story.time');run('setOverlay("pause")');advance(1000);assert.equal(run('Story.time'),frozen);run('setOverlay(null)');
+  run('action("parent")');advance(500);assert.equal(run('Story.time'),frozen);run('action("parent-return")');
+  advance(durations[i]-250);assert.equal(run('Story.step'),i+1);assert.equal(run('Story.busy'),false);
+  if(i<durations.length-1)assert.equal(run('S.reward'),0);else assert.ok(run('S.reward')>0);
+ }
+ if(index===5){assert.match(run('storyScene()'),/left:10.5%/);assert.match(run('storyScene()'),/left:17.5%/);assert.match(run('storyScene()'),/top:73.9%/);}
+ advance(1200);if(index<9)assert.equal(run('S.level'),index+1);else assert.equal(run('S.overlay'),'menu');
+ run('action("replay")');assert.equal(run('Story.step'),0);assert.equal(run('Story.busy'),false);
+}
+start(2,6,'precise');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1300);assert.match(root.innerHTML,/点点熊猫/);assert.equal(run('Story.step'),1);
+start(2,7);tap();advance(500);assert.match(run('storyScene()'),/scale\(1 0.08\)/,'eyelids close');advance(900);assert.doesNotMatch(run('storyScene()'),/#70e83b/,'eyes disappear between taps');tap();advance(1400);tap();advance(2000);assert.match(run('storyScene()'),/egg-wings/);assert.equal(run('S.reward'),0,'egg must fully fly off before completion');
+start(2,8);assert.doesNotMatch(run('storyScene()'),/opacity="1"/);tap();advance(1500);assert.match(run('storyScene()'),/opacity="1"/);
+start(2,9);tap(null);assert.equal(run('S.round'),0,'matching never chooses automatically in slap mode');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1100);assert.equal(run('Story.step'),1);
+start(2,5,'dwell');tap(node,50);advance(500);wins.pointerup({pointerId:50});advance(1000);assert.equal(run('S.round'),0);tap(node,51);advance(1250);assert.equal(run('Story.busy'),true);
+console.log('PASS: P2 6–10 three settled apples, bamboo then panda, two blinks then winged flight, feature growth, all silhouette choices; repeat protection, input modes, pause/parent and automatic progression.');
