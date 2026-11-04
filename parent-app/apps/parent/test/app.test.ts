@@ -116,7 +116,7 @@ describe("家长端页面", () => {
   it("我的页：档案、安全标记、默认回应方式", async () => {
     const root = await mountAt("#/profile");
     expect(root.textContent).toContain("安全");
-    expect(root.textContent).toContain("怕闪");
+    expect(root.textContent).toContain("光敏性癫痫");
     expect(root.querySelectorAll('input[type="checkbox"]').length).toBe(3);
     expect(root.querySelectorAll(".mode-chip").length).toBe(3);
   });
@@ -281,5 +281,82 @@ describe("儿童端数据接入", () => {
     expect(rate.hits).toBe(2);
     expect(rate.valid).toBe(3);
     expect(rate.rate).toBeCloseTo(2 / 3, 10);
+  });
+});
+
+describe("计划页与档案页", () => {
+  it("点「回应方式」会立刻选中（曾经因为重绘被拦掉而看起来没反应）", async () => {
+    const root = await mountAt("#/plan");
+    const chips = [...root.querySelectorAll<HTMLButtonElement>(".mode-chip")];
+    expect(chips.length).toBe(3);
+
+    const idle = chips.find((c) => !c.classList.contains("selected"))!;
+    expect(idle).toBeDefined();
+    const label = idle.textContent;
+
+    idle.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    const now = [...root.querySelectorAll<HTMLButtonElement>(".mode-chip")].find(
+      (c) => c.textContent === label,
+    )!;
+    expect(now.classList.contains("selected")).toBe(true);
+  });
+
+  it("安全栏目用专业表述，不用口语", async () => {
+    const root = await mountAt("#/profile");
+    expect(root.textContent).toContain("光敏性癫痫");
+    expect(root.textContent).toContain("强光敏感");
+    expect(root.textContent).toContain("触觉防御");
+    expect(root.textContent).not.toContain("怕闪");
+    expect(root.textContent).not.toContain("怕亮");
+  });
+});
+
+describe("已拍的实物", () => {
+  it("能改名和删除；删掉当前选中的关卡会退回内置关", async () => {
+    vi.resetModules();
+    resetStorage();
+
+    const level = {
+      id: "custom-test-1",
+      name: "我的水杯",
+      target: "我的水杯",
+      color: "#ff3b30",
+      image: "data:image/png;base64,AAAA",
+      thumb: "data:image/png;base64,AAAA",
+      createdAt: Date.now(),
+    };
+    window.localStorage.setItem("microstar.custom-levels.v1", JSON.stringify([level]));
+
+    document.body.innerHTML = '<div id="root"></div>';
+    window.location.hash = "#/extract";
+    const mod = await import("../src/app.js");
+    const { store } = await import("../src/lib/store.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
+    // 切到第三阶段并选中这个自制关卡
+    store.update((s) => {
+      s.plan.stage = 3;
+      s.plan.levelId = level.id;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(root.textContent).toContain("已拍的实物");
+    expect(root.textContent).toContain("我的水杯");
+
+    const original = window.confirm;
+    window.confirm = () => true;
+    const del = [...root.querySelectorAll("button")].find((b) => b.textContent === "删除")!;
+    expect(del).toBeDefined();
+    del.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    window.confirm = original;
+
+    // 关卡没了，而且计划不能停在一个已经不存在的关卡上
+    expect(root.textContent).not.toContain("我的水杯");
+    expect(store.state.plan.levelId).not.toBe(level.id);
+    expect(store.state.plan.levelId).toBeTruthy();
   });
 });

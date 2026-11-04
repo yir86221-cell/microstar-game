@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  averageOffset,
   fatigueSlope,
   hitRate,
+  latencyCv,
   latencyStats,
+  longestStreak,
   percentile,
   summarize,
   type TrialRecord,
@@ -136,5 +139,59 @@ describe("会话汇总", () => {
     expect(s.aborted).toBe(1);
     expect(s.rate).toBeCloseTo(2 / 3, 10);
     expect(s.p50).toBe(5_000);
+  });
+});
+
+describe("新增的三个数据指标", () => {
+  it("最长连续串能区分「一直很稳」和「一好一坏」", () => {
+    const steady = [trial(), trial(), trial(), trial({ outcome: "noResponse", latencyMs: null })];
+    const jumpy = [
+      trial(),
+      trial({ outcome: "noResponse", latencyMs: null }),
+      trial(),
+      trial({ outcome: "noResponse", latencyMs: null }),
+    ];
+    expect(longestStreak(steady)).toEqual({ hit: 3, noResponse: 1 });
+    expect(longestStreak(jumpy)).toEqual({ hit: 1, noResponse: 1 });
+  });
+
+  it("abort 不打断连续串", () => {
+    const trials = [
+      trial(),
+      trial({ outcome: "abort", latencyMs: null }),
+      trial(),
+      trial(),
+    ];
+    expect(longestStreak(trials).hit).toBe(3);
+  });
+
+  it("变异系数：样本不足给 null，稳定时接近 0", () => {
+    expect(latencyCv([trial({ latencyMs: 5000 }), trial({ latencyMs: 5200 })])).toBeNull();
+
+    const stable = latencyCv([
+      trial({ latencyMs: 5000 }),
+      trial({ latencyMs: 5100 }),
+      trial({ latencyMs: 4900 }),
+    ]);
+    const wild = latencyCv([
+      trial({ latencyMs: 1000 }),
+      trial({ latencyMs: 5000 }),
+      trial({ latencyMs: 12000 }),
+    ]);
+
+    expect(stable).not.toBeNull();
+    expect(wild).not.toBeNull();
+    expect(stable!).toBeLessThan(0.05);
+    expect(wild!).toBeGreaterThan(0.6);
+  });
+
+  it("落点偏离：只在精准模式下有数，取平均", () => {
+    expect(averageOffset([trial()])).toBeNull();
+    const v = averageOffset([
+      trial({ offsetRatio: 0.2 }),
+      trial({ offsetRatio: 0.6 }),
+      trial({ outcome: "noResponse", latencyMs: null }),
+    ]);
+    expect(v).toBeCloseTo(0.4, 10);
   });
 });

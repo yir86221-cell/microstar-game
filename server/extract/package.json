@@ -1,0 +1,16 @@
+{
+  "name": "microstar-extract",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "提纯代理：家长端 → 本服务 → 阿里云视觉智能",
+  "scripts": {
+    "start": "node index.mjs",
+    "check": "node --check index.mjs"
+  },
+  "dependencies": {
+    "@alicloud/imageseg20191230": "^1.0.0",
+    "@alicloud/openapi-client": "^0.4.0",
+    "ali-oss": "^6.21.0"
+  }
+}
