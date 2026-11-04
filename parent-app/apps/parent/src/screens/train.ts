@@ -1,3 +1,4 @@
+import {gamePanel} from '../lib/game-bridge.js';
 import { summarize } from "@microstar/core-domain";
 import { card, cardTitle, h } from "../lib/dom.js";
 import { pct, secs } from "../lib/format.js";
@@ -167,6 +168,7 @@ export const render: ScreenRenderer = (ctx) => {
       statusStrip,
       rail,
       assetGrid,
+      gamePanel(),
       planCard,
     ),
   };
