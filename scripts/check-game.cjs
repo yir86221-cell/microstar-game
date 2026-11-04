@@ -65,3 +65,18 @@ start(1,0);run('E.roundElapsed=0');advance(20000);assert.equal(run('S.round'),0,
 // 判定窗口可以被家长端传来的 timeoutMs 收窄
 start(1,0);run('ROUND_TIMEOUT_MS=12000;E.roundElapsed=0');advance(13000);assert.equal(run('S.round'),1,'custom window honored');
 console.log('PASS: no-response timeout advances the round and honors a custom window.');
+
+// settings from the parent app: 同源才生效，值要合法
+run("globalThis.location={origin:'https://example.test'}");
+start(1,0);
+wins.message({origin:'https://evil.test',data:{type:'microstar:start-level',phase:3,index:0,mode:'slap'}});
+assert.equal(run('S.phase'),1,'foreign origin ignored');
+wins.message({origin:'https://example.test',data:{type:'microstar:start-level',phase:2,index:1,mode:'dwell',sound:true,size:'large',timeoutMs:15000}});
+assert.equal(run('S.phase'),2,'phase applied');
+assert.equal(run('S.mode'),'dwell','mode applied');
+assert.equal(run('soundOn'),true,'sound applied');
+assert.equal(run('ROUND_TIMEOUT_MS'),15000,'timeout applied');
+wins.message({origin:'https://example.test',data:{type:'microstar:start-level',phase:9,index:99,mode:'nope',timeoutMs:1}});
+assert.equal(run('S.phase'),3,'out-of-range phase clamped into 1-3');
+assert.ok(run('ROUND_TIMEOUT_MS')>=10000,'timeout clamped to a sane floor');
+console.log('PASS: parent settings applied only from same origin, with validation.');

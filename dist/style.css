@@ -77,3 +77,7 @@
 .parent-frame{border-radius:0 0 23px 23px}
 @media (max-width:640px),(max-height:520px){.parent-overlay{padding:8px}.parent-shell{border-radius:16px}.parent-frame{border-radius:0 0 15px 15px}}
 .object .art,.moving-anchor .art{zoom:var(--target-scale,1)}
+
+
+/* Soft controls keep the child playfield black and uncluttered. */
+.icon-btn,.close-btn{border-radius:50%}.drawer{background:#15141b;border-radius:0 36px 36px 0;gap:22px}.preview{border:0;border-radius:30px;background:#050505;box-shadow:none}.preview.selected{box-shadow:0 0 0 3px var(--yellow)}.mode-chip{border:0;border-radius:999px;background:#222}.mode-chip.selected{background:var(--yellow)}@media(max-height:560px){.drawer{gap:10px;border-radius:0 26px 26px 0}.preview{border-radius:22px}.preview-label{padding:6px}.mode-chip{padding:7px}.primary{padding:10px}}
