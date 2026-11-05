@@ -1,0 +1,13 @@
+{
+  "appId": "cn.microstar.game.demo",
+  "appName": "微动星瞳",
+  "webDir": "dist",
+  "backgroundColor": "#000000",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "SystemBars": { "insetsHandling": "disable", "style": "DARK" }
+  }
+}

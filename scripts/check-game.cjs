@@ -1,6 +1,22 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 function environment(source){const listeners={},wins={},root={innerHTML:'',addEventListener:(t,f)=>listeners[t]=f};const c={document:{querySelector:s=>s==='#app'?root:null,querySelectorAll:()=>[],addEventListener:()=>{},hidden:false},window:{addEventListener:(t,f)=>{const prev=wins[t];wins[t]=prev?e=>{prev(e);f(e)}:f}},requestAnimationFrame:()=>{},console};vm.createContext(c);vm.runInContext(source,c);return{root,listeners,wins,run:s=>vm.runInContext(s,c)};}
 const env=environment(fs.readFileSync(require('node:path').join(__dirname,'../dist/game.js'),'utf8')), {root,run,listeners,wins}=env;
+// Native back navigation must preserve progress when pausing, and backgrounding
+// must cancel in-flight touch gestures instead of completing them on resume.
+run('S.phase=1; startLevel(0); S.round=1');
+assert.equal(run('window.microstarAndroidBack()'),true);
+assert.equal(run('S.overlay'),'pause');assert.equal(run('S.round'),1);
+run('window.microstarAndroidBack()');assert.equal(run('S.page'),'phases');
+run('window.microstarAndroidBack()');assert.equal(run('S.page'),'home');
+assert.equal(run('window.microstarAndroidBack()'),false,'home returns control to Android');
+run('startLevel(0); setOverlay("menu"); window.microstarAndroidBack()');
+assert.equal(run('S.overlay'),'pause','back from menu does not resume the game');
+run('parentHoldMs=1200; action("parent"); window.microstarAndroidBack()');
+assert.equal(run('S.overlay'),'pause','closing parent restores the earlier pause');
+run('startLevel(0); S.hold={elapsed:1100}; parentHoldStart=10; parentHoldMs=1000; window.microstarAndroidPause()');
+assert.equal(run('S.hold'),null);assert.equal(run('parentHoldMs'),0);
+assert.equal(run('S.overlay'),'pause');assert.equal(run('S.round'),0);
+run('home()');
 let time=0;function advance(ms){for(let n=0;n<ms;n+=50){time+=50;run(`tick(${time})`);}}
 function start(p,l,mode='slap'){run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);}
 const node={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};

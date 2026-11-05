@@ -12,3 +12,8 @@ Thumbs.db
 .openai/
 
 /dist/parent/
+
+# Android deliverables and signing material stay on this computer.
+/releases/
+*.keystore
+*.jks

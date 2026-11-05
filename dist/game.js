@@ -317,3 +317,19 @@ function saveGameRecord(){if(isPig()&&currentRec&&!currentRec.rounds.length)recR
 window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==document.querySelector('.parent-frame')?.contentWindow||e.data?.type!=='microstar:start-game')return;const p=e.data.settings;if(!p||![1,2,3].includes(p.phase)||!['slap','precise','dwell'].includes(p.mode))return;S.phase=p.phase;S.mode=p.mode;soundOn=p.sound;parentPreviousOverlay=null;startLevel(0);});
 
 function markOffset(node,ev){try{if(!node||!ev||typeof ev.clientX!=='number')return;const r=node.getBoundingClientRect();if(!r||!r.width)return;const cx=r.left+r.width/2,cy=r.top+r.height/2;pendingOffset=Math.min(3,Math.hypot(ev.clientX-cx,ev.clientY-cy)/(r.width/2));}catch(e){}}
+
+// Native Android back never advances a round or silently resumes a paused game.
+window.microstarAndroidBack=function(){
+ if(S.overlay==='parent'){closeParent();return true;}
+ if(S.page==='game'){
+  if(S.overlay==='menu'){setOverlay('pause');return true;}
+  if(S.overlay){phaseView();return true;}
+  setOverlay('pause');return true;
+ }
+ if(S.page==='phases'){home();return true;}
+ return false;
+};
+window.microstarAndroidPause=function(){
+ endHold();parentHoldStart=0;parentHoldMs=0;Cup.drag=null;
+ if(S.page==='game'&&!S.overlay)setOverlay('pause');
+};

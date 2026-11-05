@@ -1,5 +1,23 @@
 # 微动星瞳游戏 Demo
 
+## 安卓独立分支
+
+本分支 `feature/android-app` 在现有儿童端和家长端外加入 Android 应用工程。
+原项目目录继续使用 `main`，安卓开发在独立 worktree 中完成，不会自动更新原项目或 Sites 网站。
+
+测试安装包：`releases/microstar-android-debug.apk`（本地构建产物，不进 Git）。
+安装、构建、已验证内容和限制见 [安卓测试版说明](docs/android-app.md)。
+
+在安装 Node.js 22+、JDK 21、Android SDK 36 后首次执行：
+
+```sh
+npm ci
+npm --prefix parent-app ci
+npm run android:apk
+```
+
+儿童端和构建后的家长端均打包在 APK 内，启动不依赖电脑或试玩网站。
+
 这是儿童游戏端的可交互原型，供小组讨论界面、玩法与操作方式。右下角家长入口可以打开家长端（架构、界面与 P0 代码都在 `parent-app/`）。**真实硬件连接尚未接入**，家长端目前在模拟设备上演示。
 
 ## 小组成员从这里开始
