@@ -11,10 +11,10 @@ run('window.microstarAndroidBack()');assert.equal(run('S.page'),'home');
 assert.equal(run('window.microstarAndroidBack()'),false,'home returns control to Android');
 run('startLevel(0); setOverlay("menu"); window.microstarAndroidBack()');
 assert.equal(run('S.overlay'),'pause','back from menu does not resume the game');
-run('parentHoldMs=1200; action("parent"); window.microstarAndroidBack()');
+run('openParent(); window.microstarAndroidBack()');
 assert.equal(run('S.overlay'),'pause','closing parent restores the earlier pause');
-run('startLevel(0); S.hold={elapsed:1100}; parentHoldStart=10; parentHoldMs=1000; window.microstarAndroidPause()');
-assert.equal(run('S.hold'),null);assert.equal(run('parentHoldMs'),0);
+run('startLevel(0); S.hold={elapsed:1100}; window.microstarAndroidPause()');
+assert.equal(run('S.hold'),null);assert.equal(run('parentHold'),null);
 assert.equal(run('S.overlay'),'pause');assert.equal(run('S.round'),0);
 run('home()');
 let time=0;function advance(ms){for(let n=0;n<ms;n+=50){time+=50;run(`tick(${time})`);}}
@@ -64,16 +64,16 @@ assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].c
 start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
 console.log('PASS: P2 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
-for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("parentHoldMs=1000;action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
-start(1,4);run("setOverlay('menu');parentHoldMs=1000;action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
+for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("openParent()");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
+start(1,4);run("setOverlay('menu');openParent();action('parent-return')");assert.equal(run('S.overlay'),'menu');
 
 for(const p of [1,2]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),p===3?2:1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:p===2?9:4);run('S.round=3;S.reward=1');advance(100);if(p<3){assert.equal(run('S.phase'),p+1);assert.equal(run('S.level'),0);assert.equal(run('S.overlay'),null);}else assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
 
-start(2,1);run("respond();parentHoldMs=1000;action('parent')");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
+start(2,1);run("respond();openParent()");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
 // 家长入口改为长按：短按不应打开，长按才打开
-start(1,0);run('parentHoldMs=0');run("action('parent')");assert.equal(run('S.overlay'),null);
-start(1,0);run('parentHoldMs=1200');run("action('parent')");assert.equal(run('S.overlay'),'parent');
-console.log('PASS: parent entry requires long press (short press ignored).');
+start(1,0);run("action('parent')");assert.equal(run('S.overlay'),null);
+// Actual touch lifecycle is covered by check-parent-entry.cjs.
+console.log('PASS: parent entry ignores click-only activation.');
 
 // Only the embedded parent frame can apply validated game settings.
 run("globalThis.location={origin:'https://example.test'};globalThis.localStorage={items:{},getItem(k){return this.items[k]||null},setItem(k,v){this.items[k]=v}};globalThis.parentSource={};const baseQuery=document.querySelector;document.querySelector=q=>q==='.parent-frame'?{contentWindow:parentSource}:baseQuery(q)");
@@ -107,7 +107,7 @@ const wagElapsed=run('Pig.elapsed');tap();assert.equal(run('Pig.elapsed'),wagEla
 run('setOverlay("pause")');advance(1500);assert.equal(run('Pig.elapsed'),wagElapsed);run('setOverlay(null)');
 advance(700);assert.equal(run('Pig.phase'),'run');assert.equal(run('S.reward'),0,'tail wag is not success');
 advance(1000);assert.ok(run('Pig.x')>54);assert.equal(run('Pig.phase'),'run');assert.equal(run('S.reward'),0,'success waits until full exit');
-const runElapsed=run('Pig.elapsed');run("parentHoldMs=1000;action('parent')");advance(1000);assert.equal(run('Pig.elapsed'),runElapsed);run("action('parent-return')");advance(1350);
+const runElapsed=run('Pig.elapsed');run("openParent()");advance(1000);assert.equal(run('Pig.elapsed'),runElapsed);run("action('parent-return')");advance(1350);
 assert.equal(run('Pig.phase'),'complete');assert.equal(run('Pig.x'),149);assert.ok(run('S.reward')>0);advance(700);assert.equal(run('S.level'),5);assert.equal(run('S.overlay'),null);
 start(2,4);
 const pigRecords=run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))");assert.equal(pigRecords.at(-1).name,'小猪快跑');assert.equal(pigRecords.at(-1).responses,1);
@@ -124,7 +124,7 @@ for(const [index,durations] of [[5,[2600,2600,2600]],[6,[1250,2200]],[7,[1350,13
  for(let i=0;i<durations.length;i++){
   tap();assert.equal(run('S.round'),i+1);assert.equal(run('Story.busy'),true);tap();assert.equal(run('S.round'),i+1);
   advance(250);const frozen=run('Story.time');run('setOverlay("pause")');advance(1000);assert.equal(run('Story.time'),frozen);run('setOverlay(null)');
-  run('parentHoldMs=1000;action("parent")');advance(500);assert.equal(run('Story.time'),frozen);run('action("parent-return")');
+  run('openParent()');advance(500);assert.equal(run('Story.time'),frozen);run('action("parent-return")');
   advance(durations[i]-250);assert.equal(run('Story.step'),i+1);assert.equal(run('Story.busy'),false);
   if(i<durations.length-1)assert.equal(run('S.reward'),0);else assert.ok(run('S.reward')>0);
  }

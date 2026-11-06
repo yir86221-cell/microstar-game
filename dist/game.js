@@ -27,7 +27,8 @@ function currentLevel(){const l=phaseLevels()[S.level];if(l.id!=='colors')return
 const phases=[{id:1,art:'circle',name:'发现目标'},{id:2,art:'horse',name:'认识物品'},{id:3,art:'cup',name:'生活探索'}];
 const modes=[{id:'slap',name:'拍击',description:'触碰屏幕任意位置即可回应'},{id:'precise',name:'精准点击',description:'点击目标物体，触碰其他位置不会触发'},{id:'dwell',name:'悬停',description:'接触目标并停留 1.2 秒，无需抬手'}];
 const S={page:'home',phase:1,level:0,mode:'slap',round:0,overlay:null,reward:0,hold:null,toast:'',toastRemaining:0,targetSlot:0};
-let parentPreviousOverlay=null,parentHoldStart=0,parentHoldMs=0;
+let parentPreviousOverlay=null,parentHold=null,parentClickBlocked=false;
+const PARENT_HOLD_MS=1000;
 let gameStartedAt=0,gamePausedAt=0,gamePausedTotal=0;
 let audio=null,soundOn=null,lastTick=0;
 const icon={pause:'<svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>',menu:'<svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>',back:'<svg viewBox="0 0 24 24"><path d="m15 4-8 8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>'};
@@ -46,14 +47,14 @@ function legacyGameView(){const l=currentLevel(),isColors=l.id==='colors',count=
 function instruction(){const l=currentLevel();if(S.mode==='slap')return `拍击屏幕，${l.action}`;if(S.mode==='precise')return `找到${l.target}，点一下吧！`;return `接触${l.target}并停留一会儿`}
 function menuView(){return `<div class="overlay"><section class="drawer" role="dialog" aria-modal="true" aria-label="游戏菜单"><div class="drawer-head"><div><h2>游戏菜单</h2><p>游戏已暂停</p></div><button class="close-btn" data-action="resume" aria-label="关闭菜单">×</button></div><div class="section-head"><h3>选择关卡</h3><button class="phase-link" data-action="phases">Phase ${['','I','II','III'][S.phase]} · 切换阶段</button></div><div class="preview-grid ${S.phase===1?'expanded-levels':S.phase===2?'story-levels':''}">${phaseLevels().map((l,i)=>`<button class="preview ${S.level===i?'selected':''}" data-level="${i}" aria-pressed="${S.level===i}"><div class="preview-art">${customLevelById(l.id)?artFor(l):l.kind?simpleArt(l.id,l.color):arts[l.id]()}</div><span class="preview-label">${S.phase===1?(i+1)+'. ':''}${l.name}</span>${S.level===i?'<span class="selected-mark">✓</span>':''}</button>`).join('')}</div>${S.phase===1?`<div class="menu-tools"><button class="small-btn" data-action="easier">${E.easy?'恢复标准':'降低难度'}</button><button class="small-btn" data-action="sound">${(soundOn??true)?'关闭':'开启'}声音</button></div>`:''}<h3 class="mode-head">交互模式</h3><div class="mode-row">${modes.map(m=>`<button class="mode-chip ${m.id===S.mode?'selected':''}" data-mode="${m.id}" aria-pressed="${m.id===S.mode}">${m.name}</button>`).join('')}</div><p class="mode-description">${modes.find(m=>m.id===S.mode).description}</p><button class="primary" data-action="resume">${(isPig()&&Pig.phase==='complete')||(isStory()&&Story.done)?'再玩一次':'继续游戏'}</button></section></div>`;}
 function pauseView(){return `<div class="overlay modal-overlay"><section class="modal" role="dialog" aria-modal="true" aria-label="游戏已暂停"><div class="pause-symbol">Ⅱ</div><h2>休息一下吧</h2><p>游戏已暂停，准备好再继续。</p><button class="primary" data-action="resume">继续游戏</button><button class="secondary" data-action="menu">选择关卡</button><button class="small-btn" data-action="home">返回首页</button><button class="small-btn" data-action="sound">${(soundOn??(S.phase===1||isPig()||isStory()))?'关闭':'开启'}声音反馈</button></section></div>`;}
-function parentEntry(){return '<button class="parent-entry" data-action="parent" aria-haspopup="dialog" aria-expanded="'+(S.overlay==='parent')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 21v-3a7 7 0 0 1 14 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>家长入口</span></button>';}
+function parentEntry(){return '<button class="parent-entry" data-action="parent" aria-label="家长入口，按住一秒进入" title="按住一秒进入" style="--parent-hold-duration:'+PARENT_HOLD_MS+'ms" aria-haspopup="dialog" aria-expanded="'+(S.overlay==='parent')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 21v-3a7 7 0 0 1 14 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>家长入口</span></button>';}
 function parentView(){return '<div class="overlay parent-overlay"><section class="parent-shell" role="dialog" aria-modal="true" aria-label="家长空间"><header class="parent-toolbar"><span>家长空间</span><button class="small-btn" data-action="parent-return">'+(S.page==='game'?'返回游戏':'返回上一页')+'</button></header><iframe class="parent-frame" src="parent/index.html" title="微动星瞳家长端" allow="bluetooth"></iframe></section></div>';}
 function openParent(){if(S.overlay==='parent')return;parentPreviousOverlay=S.overlay;setOverlay('parent');}
 function closeParent(){setOverlay(parentPreviousOverlay);parentPreviousOverlay=null;requestAnimationFrame(()=>document.querySelector('.parent-entry')?.focus({preventScroll:true}));}
-function render(){requestTick();app.innerHTML=(S.page==='home'?homeView():S.page==='phases'?phasesView():gameView())+(S.overlay==='menu'?menuView():S.overlay==='pause'?pauseView():S.overlay==='parent'?parentView():'')+parentEntry();if(S.overlay){requestAnimationFrame(()=>document.querySelector('[role="dialog"] button')?.focus({preventScroll:true}));}}
+function render(){cancelParentHold();requestTick();app.innerHTML=(S.page==='home'?homeView():S.page==='phases'?phasesView():gameView())+(S.overlay==='menu'?menuView():S.overlay==='pause'?pauseView():S.overlay==='parent'?parentView():'')+parentEntry();if(S.overlay){requestAnimationFrame(()=>document.querySelector('[role="dialog"] button')?.focus({preventScroll:true}));}}
 function respond(){if(isCup()){endHold();Cup.drag=null;turnCup(.5);return;}if(isStory())return triggerStory();if(isPig())return triggerPig();if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();S.reward=1500;recRound(Date.now()-roundStartAt);S.round++;S.toast='';sound();render();}
-function action(name){switch(name){case'cup-left':turnCup(-.5);break;case'cup-right':turnCup(.5);break;case'cup-up':turnCup(0,-.25);break;case'cup-reset':resetCup();paintCup();break;case'parent':if(parentHoldMs<900)return;parentHoldMs=0;openParent();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':if((isPig()&&Pig.phase==='complete')||(isStory()&&Story.done))startLevel();else setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1||isPig()||isStory()));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
-app.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.action){action(b.dataset.action);return;}if(S.overlay==='parent')return;if(b?.dataset.phase){S.phase=Number(b.dataset.phase);startLevel(0);return;}if(b?.dataset.level!==undefined){endHold();startLevel(Number(b.dataset.level));setOverlay('menu');return;}if(b?.dataset.mode){endHold();S.mode=b.dataset.mode;startLevel();setOverlay('menu');return;}if(S.page==='home'){phaseView();return;}if(isAdvanced()&&e.detail===0&&S.page==='game'&&!S.overlay){advancedInput(b?.dataset.object?b:null,null);return;}if(e.detail===0&&b?.dataset.object&&S.page==='game'&&!S.overlay){if((S.mode==='slap'&&currentLevel().id!=='colors')||b.dataset.object==='target')respond();}});
+function action(name){switch(name){case'cup-left':turnCup(-.5);break;case'cup-right':turnCup(.5);break;case'cup-up':turnCup(0,-.25);break;case'cup-reset':resetCup();paintCup();break;case'parent':return;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':if((isPig()&&Pig.phase==='complete')||(isStory()&&Story.done))startLevel();else setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1||isPig()||isStory()));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
+app.addEventListener('click',e=>{if(parentClickBlocked){parentClickBlocked=false;e.preventDefault();return;}const b=e.target.closest('button');if(b?.dataset.action){action(b.dataset.action);return;}if(S.overlay==='parent')return;if(b?.dataset.phase){S.phase=Number(b.dataset.phase);startLevel(0);return;}if(b?.dataset.level!==undefined){endHold();startLevel(Number(b.dataset.level));setOverlay('menu');return;}if(b?.dataset.mode){endHold();S.mode=b.dataset.mode;startLevel();setOverlay('menu');return;}if(S.page==='home'){phaseView();return;}if(isAdvanced()&&e.detail===0&&S.page==='game'&&!S.overlay){advancedInput(b?.dataset.object?b:null,null);return;}if(e.detail===0&&b?.dataset.object&&S.page==='game'&&!S.overlay){if((S.mode==='slap'&&currentLevel().id!=='colors')||b.dataset.object==='target')respond();}});
 app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isCup()){cupInput(obj,e);return;}if(isStory()){storyInput(obj,e);return;}if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){markOffset(obj,e);respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
 window.addEventListener('pointermove',e=>{if(!S.hold||e.pointerId!==S.hold.id)return;const r=S.hold.node.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)endHold();});
 window.addEventListener('pointerup',e=>{if(S.hold?.id===e.pointerId)endHold();});window.addEventListener('pointercancel',endHold);window.addEventListener('blur',()=>{if(S.page==='game'&&!S.overlay)setOverlay('pause');else endHold();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.page==='game'&&!S.overlay)setOverlay('pause');});
@@ -277,10 +278,55 @@ window.addEventListener('pointercancel',()=>{Cup.drag=null;});
 window.addEventListener('keydown',e=>{if(!isCup()||S.overlay||!e.target?.closest?.('.cup-stage'))return;const moves={ArrowLeft:[-.25,0],ArrowRight:[.25,0],ArrowUp:[0,-.15],ArrowDown:[0,.15]};if(moves[e.key]){e.preventDefault();turnCup(...moves[e.key]);}});
 
 render();
-/* 家长入口改为长按触发：短按不响应，避免孩子误触 */
-document.addEventListener('pointerdown',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){parentHoldStart=Date.now();b.classList.add('holding');}},true);
-document.addEventListener('pointerup',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){if(parentHoldStart)parentHoldMs=Date.now()-parentHoldStart;parentHoldStart=0;b.classList.remove('holding');}},true);
-document.addEventListener('pointercancel',e=>{const b=e.target&&e.target.closest&&e.target.closest('.parent-entry');if(b){parentHoldStart=0;parentHoldMs=0;b.classList.remove('holding');}},true);
+/* Android long presses can omit click. Complete the hold directly, while the
+   finger is still down; never depend on a synthetic click after pointerup. */
+function cancelParentHold(){
+ const hold=parentHold;parentHold=null;
+ if(!hold)return;
+ clearTimeout(hold.timer);hold.node.classList.remove('holding');
+ if(hold.node.hasPointerCapture?.(hold.id))hold.node.releasePointerCapture(hold.id);
+}
+document.addEventListener('pointerdown',e=>{
+ if(parentHold){cancelParentHold();return;}
+ parentClickBlocked=false;
+ const b=e.target?.closest?.('.parent-entry');
+ if(!b||e.button!==0||e.isPrimary===false||S.overlay==='parent')return;
+ e.preventDefault();
+ const hold={id:e.pointerId,node:b,timer:null};parentHold=hold;
+ b.classList.add('holding');b.setPointerCapture?.(e.pointerId);
+ hold.timer=setTimeout(()=>{
+  if(parentHold!==hold)return;
+  if(document.hidden||!b.isConnected){cancelParentHold();return;}
+  // Keep the release on the stable app root when render replaces the button.
+  // Otherwise a touchend can click a tab inside the newly opened iframe.
+  parentClickBlocked=true;app.setPointerCapture?.(hold.id);
+  cancelParentHold();openParent();
+ },PARENT_HOLD_MS);
+},true);
+document.addEventListener('pointermove',e=>{
+ if(!parentHold||e.pointerId!==parentHold.id)return;
+ const r=parentHold.node.getBoundingClientRect();
+ if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)cancelParentHold();
+},true);
+for(const type of ['pointerup','pointercancel','lostpointercapture']){
+ document.addEventListener(type,e=>{if(e.pointerId===parentHold?.id)cancelParentHold();},true);
+}
+document.addEventListener('contextmenu',e=>{if(e.target?.closest?.('.parent-entry'))e.preventDefault();},true);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelParentHold();});
+window.addEventListener('blur',cancelParentHold);
+// Compatibility clicks can be hit-tested inside the iframe even when the
+// pointer stream stayed captured by the app. Guard that same-origin document
+// too, until the old release is consumed or the next deliberate press starts.
+app.addEventListener('load',e=>{
+ if(!e.target.matches?.('.parent-frame'))return;
+ const doc=e.target.contentDocument;
+ if(!doc)return;
+ doc.addEventListener('pointerdown',()=>{parentClickBlocked=false;},true);
+ doc.addEventListener('click',e=>{
+  if(!parentClickBlocked)return;
+  parentClickBlocked=false;e.preventDefault();e.stopImmediatePropagation();
+ },true);
+},true);
 /* 家长端弹窗里的「开始训练」交回儿童模式：约定一条同源 postMessage */
 window.addEventListener('message',e=>{
  if(e.origin!==location.origin||e.source!==document.querySelector('.parent-frame')?.contentWindow)return;
@@ -330,6 +376,6 @@ window.microstarAndroidBack=function(){
  return false;
 };
 window.microstarAndroidPause=function(){
- endHold();parentHoldStart=0;parentHoldMs=0;Cup.drag=null;
+ endHold();cancelParentHold();Cup.drag=null;
  if(S.page==='game'&&!S.overlay)setOverlay('pause');
 };
