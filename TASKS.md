@@ -1,5 +1,12 @@
 # 团队进度
 
+## 第四阶段手动控灯（2026-11-05）
+
+- 电脑分支 `codex/desktop-phase4-lamp`；安卓分支 `codex/android-phase4-lamp`，均未合并 main。
+- 根据用户新增的两个蓝牙示例文件，在第四阶段计划卡增加一个闪烁启停按钮；电脑使用 Web Bluetooth，安卓使用原生 BLE。
+- 检查、家长端 112 项测试、类型检查、电脑/手机/平板布局检查及安卓构建通过；真实灯具和安卓真机待测。
+- 使用、协议与 0.1.2 安装包见 [控灯说明](docs/phase4-manual-lamp.md)。
+
 ## 安卓家长入口修复（2026-11-05）
 
 - 分支：`codex/android-parent-entry-fix`，基于安卓分支 `a6177bc`；未合并、未改动 `main`。

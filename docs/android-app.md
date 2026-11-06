@@ -3,17 +3,17 @@
 ## 当前结果
 
 - 安卓基础分支：`feature/android-app`，基于 `main` 的 `b290f8b`；0.1.1 修复分支：`codex/android-parent-entry-fix`。
-- 独立目录：`D:\homework\2\微动星瞳-安卓`。原目录 `D:\homework\2\微动星瞳` 保留在 `main`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.1 / versionCode 2。
+- 独立目录：`D:\homework\2\微动星瞳-安卓`。原目录 `D:\homework\2\微动星瞳` 当前使用电脑控灯分支 `codex/desktop-phase4-lamp`，`main` 引用保持原样。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；当前控灯分支 `codex/android-phase4-lamp` 版本：0.1.2 / versionCode 3。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
 - APK：`releases/microstar-android-debug.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是调试签名的侧载试玩包，尚未上架应用商店。将来正式发布需要独立维护发布签名。
 
 ## 如何安装
 
-当前推荐 [0.1.1 修复版下载页](https://gofile.io/d/qTU1SrfL)，文件名 `microstar-android-v0.1.1.apk`，约 4 MB。签名与 0.1.0 相同，可直接覆盖安装；不要先卸载，以免清除本机记录。
+当前推荐 [0.1.2 控灯版下载页](https://gofile.io/d/1ldtrWyJ)，文件名 `microstar-android-v0.1.2.apk`，约 4 MB。签名与旧版相同，可直接覆盖安装；不要先卸载，以免清除本机记录。第四阶段新按钮的使用和验证见 [控灯说明](phase4-manual-lamp.md)。
 
-SHA-256：`17ec099d623bf262c2b6a60ec86cc91cdd410beef543c6790b7c5891bbedb3f1`。本机 `releases/microstar-android-v0.1.1-qr.png` 是对应下载二维码。
+SHA-256：`76464630f8672d430b95d2362117a691bbeacc08f76b9504a6ad7276ad105f16`。本机 `releases/microstar-android-v0.1.2-qr.png` 是对应下载二维码。
 
 ### 旧版发布记录
 
@@ -78,7 +78,7 @@ Android APK 已成功编译、通过 apksigner 验证，包内全部儿童端及
 
 沿用上游的功能限制：
 
-- 真实蓝牙灯具未接入原生 App；WebView 的设备页会明确显示模拟设备。
+- 0.1.2 的第四阶段手动控灯按钮已接入原生 BLE；原有设备页和自动训练回路仍保持原逻辑，不在本次扩展范围内。
 - 云端抠图代理未部署、未配置真实凭据，默认使用本地处理。
 - 当前家长端的 P2/P3 内置关卡目录仍各列四关，与儿童端最新的 P2 十关/P3 黄杯目录尚未完全对齐；本次打包保留上游内容，没有改动这些关卡定义。新增关卡可从儿童端菜单进入，自定义关卡跨端对应仍需上游修正。
 

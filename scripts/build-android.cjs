@@ -18,7 +18,7 @@ if (!fs.existsSync(localProperties)) {
   fs.writeFileSync(localProperties, `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
 }
 
-for (const relative of ['index.html', 'game.js', 'style.css', 'parent/index.html']) {
+for (const relative of ['index.html', 'game.js', 'style.css', 'native-lamp.js', 'parent/index.html']) {
   const web = path.join(root, 'dist', relative);
   const bundled = path.join(android, 'app/src/main/assets/public', relative);
   if (!fs.existsSync(bundled) || !fs.readFileSync(web).equals(fs.readFileSync(bundled))) {

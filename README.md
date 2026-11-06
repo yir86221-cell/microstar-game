@@ -2,11 +2,11 @@
 
 ## 安卓独立分支
 
-安卓工程位于 `feature/android-app`；本次家长入口修复独立保存在 `codex/android-parent-entry-fix`。
-原项目目录继续使用 `main`，安卓开发在独立 worktree 中完成，不会自动更新原项目或 Sites 网站。
+安卓工程位于 `feature/android-app`；本次第四阶段控灯功能独立保存在 `codex/android-phase4-lamp`，包含此前家长入口修复。
+原项目目录使用独立电脑分支，安卓开发在独立 worktree 中完成；`main` 和 Sites 网站保持原样。
 
 测试安装包：`releases/microstar-android-debug.apk`（本地构建产物，不进 Git）。
-已发布 [安卓 0.1.1 测试版下载链接](https://gofile.io/d/qTU1SrfL)（Gofile，约 4 MB）；修复手机长按家长入口无法打开，可覆盖安装 0.1.0。这是直接安装的 APK，尚未上架应用商店。
+已发布 [安卓 0.1.2 测试版下载链接](https://gofile.io/d/1ldtrWyJ)（Gofile，约 4 MB）；新增第四阶段蓝牙控灯，可覆盖安装 0.1.1。这是直接安装的 APK，尚未上架应用商店。
 安装、构建、已验证内容和限制见 [安卓测试版说明](docs/android-app.md)。
 
 在安装 Node.js 22+、JDK 21、Android SDK 36 后首次执行：
@@ -19,7 +19,7 @@ npm run android:apk
 
 儿童端和构建后的家长端均打包在 APK 内，启动不依赖电脑或试玩网站。
 
-这是儿童游戏端的可交互原型，供小组讨论界面、玩法与操作方式。右下角家长入口可以打开家长端（架构、界面与 P0 代码都在 `parent-app/`）。**真实硬件连接尚未接入**，家长端目前在模拟设备上演示。
+这是儿童游戏端的可交互原型，供小组讨论界面、玩法与操作方式。右下角家长入口可以打开家长端（架构、界面与 P0 代码都在 `parent-app/`）。本分支新增第四阶段手动蓝牙控灯按钮，说明见 [控灯使用说明](docs/phase4-manual-lamp.md)；原有自动训练及其他功能保持原样。
 
 ## 小组成员从这里开始
 
