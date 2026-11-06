@@ -2,11 +2,11 @@
 
 ## 安卓独立分支
 
-本分支 `feature/android-app` 在现有儿童端和家长端外加入 Android 应用工程。
+安卓工程位于 `feature/android-app`；本次家长入口修复独立保存在 `codex/android-parent-entry-fix`。
 原项目目录继续使用 `main`，安卓开发在独立 worktree 中完成，不会自动更新原项目或 Sites 网站。
 
 测试安装包：`releases/microstar-android-debug.apk`（本地构建产物，不进 Git）。
-已发布 [安卓 0.1.0 测试版下载链接](https://gofile.io/d/JlZUglyv)（Gofile，约 4 MB）；这是直接安装的 APK，尚未上架应用商店。
+已发布 [安卓 0.1.1 测试版下载链接](https://gofile.io/d/qTU1SrfL)（Gofile，约 4 MB）；修复手机长按家长入口无法打开，可覆盖安装 0.1.0。这是直接安装的 APK，尚未上架应用商店。
 安装、构建、已验证内容和限制见 [安卓测试版说明](docs/android-app.md)。
 
 在安装 Node.js 22+、JDK 21、Android SDK 36 后首次执行：

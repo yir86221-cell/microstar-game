@@ -68,7 +68,9 @@
 
 /* 家长入口：长按触发，按住时给出明确的视觉反馈 */
 .parent-entry.holding{color:#ffe600;background:#232323;box-shadow:0 0 0 2px #ffe60033}
-.parent-entry{transition:background .15s,color .15s,box-shadow .15s}
+.parent-entry{transition:background .15s,color .15s,box-shadow .15s;min-width:48px;touch-action:none;-webkit-touch-callout:none}
+.parent-entry.holding::after{content:"";position:absolute;left:12px;right:12px;bottom:5px;height:3px;border-radius:2px;background:#ffe600;transform-origin:left;animation:parent-hold-progress var(--parent-hold-duration,1000ms) linear both;pointer-events:none}
+@keyframes parent-hold-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 /* 家长端：居中的弹窗，背后保留儿童端画面（游戏在打开时已暂停） */
 .parent-overlay{display:flex;align-items:center;justify-content:center;padding:clamp(10px,3.5vmin,48px);background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(10px) saturate(.85);backdrop-filter:blur(10px) saturate(.85)}
