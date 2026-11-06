@@ -11,7 +11,13 @@
 
 ## 如何安装
 
-1. 把 APK 通过 USB、文件传输或个人网盘复制到安卓手机。
+2026-11-05 已将版本 0.1.0 上传到 Gofile，供小组直接下载；发布源码为 `feature/android-app` 的 `d983c130f4ef9ecdbdbadd8f562a6bfaf5424cee`，没有合并 `main` 或更新 Sites。
+
+- [手机下载 APK（约 4 MB）](https://gofile.io/d/JlZUglyv)，文件名 `microstar-android-v0.1.0.apk`。
+- SHA-256：`ef2fcca7af6d9bc8653d8eb702bd10435dbdeacbac7de67d49b902656a1dbd6b`。
+- 本机 `releases/` 中保存同一安装包、发布记录与 `microstar-android-v0.1.0-qr.png` 下载二维码。
+
+1. 在安卓手机浏览器打开上面的下载页，点击文件旁的 Download 下载 APK；也可以通过 USB 或文件传输复制本机 APK。
 2. 在手机文件管理器中打开 APK；若系统提示，允许该文件来源安装应用，再完成安装。
 3. 从桌面的黄色小鸡图标打开“微动星瞳”。
 4. 右下角家长入口需要按住约 1 秒再松开；黄杯关卡只有小人图标。
