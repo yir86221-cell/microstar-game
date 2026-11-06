@@ -9,7 +9,7 @@ export interface LampConnection {
   disconnect(): Promise<void>;
 }
 export interface LampBridge {
-  connect(onDisconnect: () => void, owner?: Window): Promise<LampConnection>;
+  connect(onDisconnect: () => void, owner?: Window, onProgress?: (message: string) => void): Promise<LampConnection>;
 }
 interface Characteristic { writeValue(bytes: Uint8Array): Promise<void> }
 interface LampDevice extends EventTarget {
@@ -22,10 +22,10 @@ interface LampDevice extends EventTarget {
 interface BluetoothApi {
   requestDevice(options: { filters: unknown[]; optionalServices: string[] }): Promise<LampDevice>;
 }
-export async function connectLamp(onDisconnect: () => void): Promise<LampConnection> {
+export async function connectLamp(onDisconnect: () => void, _owner?: Window, onProgress?: (message: string) => void): Promise<LampConnection> {
   let host: (Window & { microstarLampBridge?: LampBridge; Capacitor?: { isNativePlatform?(): boolean } }) | null = null;
   try { host = window.top; } catch { /* Standalone web fallback. */ }
-  if (host?.microstarLampBridge) return host.microstarLampBridge.connect(onDisconnect, window);
+  if (host?.microstarLampBridge) return host.microstarLampBridge.connect(onDisconnect, window, onProgress);
   if (host?.Capacitor?.isNativePlatform?.()) throw Error("此安装包缺少蓝牙模块，请安装新版 App。");
   const bluetooth = (navigator as unknown as { bluetooth?: BluetoothApi }).bluetooth;
   if (!bluetooth || window.isSecureContext === false) {
@@ -38,6 +38,7 @@ export async function connectLamp(onDisconnect: () => void): Promise<LampConnect
   if (!gatt) throw Error("设备未提供蓝牙 GATT 服务。");
   selected.addEventListener("gattserverdisconnected", onDisconnect);
   try {
+    onProgress?.("已选中 MicroStar，正在建立蓝牙连接…");
     const server = await gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
     const alert = await service.getCharacteristic(ALERT_UUID);
@@ -107,6 +108,10 @@ export class ManualLamp {
         if (generation !== this.generation) return;
         this.generation++; this.connection = null;
         this.update({ busy: false, active: false, message: "设备已断开，点按钮可重新连接。" });
+      }, undefined, message => {
+        if (generation === this.generation && !this.disposed) {
+          this.update({ busy: true, active: false, message });
+        }
       });
       if (generation !== this.generation || this.disposed) { await this.close(connection); return; }
       this.connection = connection;
@@ -114,8 +119,10 @@ export class ManualLamp {
       const light = encodeLight({ ...LIGHT_PRESETS[settings.preset],
         brightness: Math.min(brightness, settings.highLightSensitivity ? 96 : 128) });
       const ready = connection;
+      this.update({ busy: true, active: false, message: "蓝牙已连接，正在发送颜色与亮度…" });
       await this.send(() => ready.writeLight(light));
       if (generation !== this.generation) return;
+      this.update({ busy: true, active: false, message: "颜色已发送，正在发送闪灯指令…" });
       await this.send(() => ready.writeAlert(1));
       if (generation !== this.generation) return;
       this.update({ busy: false, active: true, message: "已发送闪灯指令；再次点击停止并断开。" });

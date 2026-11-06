@@ -2,11 +2,11 @@
 
 ## 安卓独立分支
 
-安卓工程位于 `feature/android-app`；本次第四阶段控灯功能独立保存在 `codex/android-phase4-lamp`，包含此前家长入口修复。
-原项目目录使用独立电脑分支，安卓开发在独立 worktree 中完成；`main` 和 Sites 网站保持原样。
+安卓基础分支为 `feature/android-v0.1.0-app`；本次 0.1.3 修复和更新提示独立保存在 `codex/android-v0.1.3-ble-and-updates`，包含此前家长入口及第四阶段控灯。
+电脑控灯此前已合并 main；本次安卓开发在独立 worktree 中完成，不合并 main，也不更新 Sites 网站。
 
 测试安装包：`releases/microstar-android-debug.apk`（本地构建产物，不进 Git）。
-已发布 [安卓 0.1.2 测试版下载链接](https://gofile.io/d/1ldtrWyJ)（Gofile，约 4 MB）；新增第四阶段蓝牙控灯，可覆盖安装 0.1.1。这是直接安装的 APK，尚未上架应用商店。
+安卓 0.1.3 测试包通过 [GitHub Releases](https://github.com/yir86221-cell/microstar-game/releases) 提供；可覆盖安装旧版，尚未上架应用商店。首次需手动安装 0.1.3，以后联网打开 App 或返回前台时会检查新版，家长空间提供“检查更新 / 有新版本”入口。下载后仍需确认安装。
 安装、构建、已验证内容和限制见 [安卓测试版说明](docs/android-app.md)。
 
 在安装 Node.js 22+、JDK 21、Android SDK 36 后首次执行：

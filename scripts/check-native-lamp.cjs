@@ -10,7 +10,7 @@ async function main() {
   const client={
     async initialize(options){calls.push(['initialize',options]);},async isEnabled(){return true;},
     async requestDevice(options){calls.push(['request',options]);return {deviceId:'test-lamp'};},
-    async connect(id,callback){disconnected=callback;calls.push(['connect',id]);},
+    async connect(id,callback,options){disconnected=callback;calls.push(['connect',id,options]);},
     async write(id,service,char,data){calls.push(['write',service,char,Array.from(new Uint8Array(data.buffer))]);},
     async disconnect(id){calls.push(['disconnect',id]);},
   };
@@ -19,6 +19,8 @@ async function main() {
   const c=await bridge.connect(()=>events++);
   assert.deepEqual(calls[0],['initialize',{androidNeverForLocation:true}]);
   assert.deepEqual(calls[1],['request',{name:'MicroStar',optionalServices:[uuid(1)]}]);
+  assert.deepEqual(calls[2],['disconnect','test-lamp'],'clear stale GATT before registering a new connection');
+  assert.deepEqual(calls[3],['connect','test-lamp',{timeout:15000}]);
   await bridge.stopActive();assert.equal(events,0,'permission/selection pause cannot cancel a new connection');
   await c.writeLight(new Uint8Array([0,0,0,255,80]));await c.writeAlert(1);
   assert.deepEqual(calls.slice(-2),[['write',uuid(1),uuid(3),[0,0,0,255,80]],['write',uuid(1),uuid(2),[1]]]);
@@ -34,6 +36,22 @@ async function main() {
   assert.deepEqual(calls.at(-2),['write',uuid(1),uuid(2),[0]],'removing iframe sends stop from the host');
   assert.deepEqual(calls.at(-1),['disconnect','test-lamp']);
   await assert.rejects(owned.writeAlert(1),/断开/);
+  let off, failures = 0, intentionalEvents = 0;
+  const failing = createNativeLampBridge({...client,
+    async connect(id, callback) {
+      off = callback;
+      if (failures++ === 0) { callback(); throw Error('Connection failed with status 133'); }
+    },
+    async disconnect() { off?.(); },
+  }, protocol);
+  const progress = [];
+  await assert.rejects(failing.connect(()=>intentionalEvents++, undefined, message=>progress.push(message)), /建立蓝牙连接失败：Connection failed with status 133/);
+  assert.equal(intentionalEvents, 0, 'failed connect must preserve the real error, not emit generic disconnect');
+  assert.ok(progress.at(-1).includes('15 秒'));
+  const retry = await failing.connect(()=>intentionalEvents++);
+  await retry.writeAlert(1);
+  await retry.disconnect();
+  assert.equal(intentionalEvents, 0, 'intentional cleanup must not mask an error with generic disconnect');
   // Assert native wiring, not just the fake client: root script, plugin and permissions.
   const root=path.resolve(__dirname,'..');
   assert.match(fs.readFileSync(path.join(root,'dist/index.html'),'utf8'),/src="native-lamp.js"/);
