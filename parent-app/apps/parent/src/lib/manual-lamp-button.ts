@@ -17,8 +17,8 @@ export function manualLampButton(onOccupied: (occupied: boolean) => void) {
   button.setAttribute("aria-pressed", "false");
   status.textContent = lamp.state.message;
   button.addEventListener("click", () => {
-    if (!lamp.state.active && device.isConnected) {
-      status.textContent = "已有训练设备连接，请先在设备页断开，再使用手动控灯。";
+    if (!lamp.state.active && device.isConnected && !device.isMock) {
+      status.textContent = "已有训练设备连接，请先结束实物训练或关闭并重新进入家长端，再使用手动控灯。";
       return;
     }
     const { plan, child } = store.state;

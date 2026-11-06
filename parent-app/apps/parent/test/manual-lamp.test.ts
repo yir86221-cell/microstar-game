@@ -66,6 +66,17 @@ describe("第四阶段手动控灯", () => {
     vi.stubGlobal("navigator",{});
     await expect(connectLamp(vi.fn())).rejects.toThrow("Chrome / Edge");
   });
+  it("shows connection progress and preserves the platform failure", async () => {
+    const messages: string[] = [];
+    const lamp = new ManualLamp(state => messages.push(state.message), async (_off, _owner, progress) => {
+      progress?.("正在建立蓝牙连接");
+      throw Error("建立蓝牙连接失败：Connection failed with status 133");
+    });
+    await lamp.toggle(settings);
+    expect(messages).toContain("正在建立蓝牙连接");
+    expect(lamp.state.busy).toBe(false);
+    expect(lamp.state.message).toContain("status 133");
+  });
   it("selects the exact supplied UUIDs and writes raw bytes on desktop", async () => {
     const alert={writeValue:vi.fn(async()=>{})},light={writeValue:vi.fn(async()=>{})};
     const getCharacteristic=vi.fn(async(uuid:string)=>uuid===ALERT_UUID?alert:light);
@@ -89,6 +100,29 @@ describe("第四阶段手动控灯", () => {
 });
 
 describe("控灯按钮范围", () => {
+  it("allows a native manual connection despite an existing mock connection", async () => {
+    const { device } = await import("../src/lib/device.js");
+    const { manualLampButton } = await import("../src/lib/manual-lamp-button.js");
+    vi.spyOn(device, "isConnected", "get").mockReturnValue(true);
+    vi.spyOn(device, "isMock", "get").mockReturnValue(true);
+    const f = fake();
+    Object.defineProperty(window, "microstarLampBridge", { value: {connect:f.connect}, configurable:true });
+    const ui = manualLampButton(vi.fn());
+    try {
+      (ui.el.querySelector("button") as HTMLButtonElement).click(); await flush();
+      expect(f.connect).toHaveBeenCalledOnce();
+    } finally { ui.destroy(); delete (window as Window & {microstarLampBridge?:unknown}).microstarLampBridge; }
+  });
+  it("still protects a real training connection", async () => {
+    const { device } = await import("../src/lib/device.js");
+    const { manualLampButton } = await import("../src/lib/manual-lamp-button.js");
+    vi.spyOn(device, "isConnected", "get").mockReturnValue(true);
+    vi.spyOn(device, "isMock", "get").mockReturnValue(false);
+    const ui = manualLampButton(vi.fn());
+    (ui.el.querySelector("button") as HTMLButtonElement).click();
+    expect(ui.el.textContent).toContain("已有训练设备连接");
+    ui.destroy();
+  });
   it("appears only in stage 4 and requests no connection while rendering", async () => {
     const {store}=await import("../src/lib/store.js");
     const {render}=await import("../src/screens/train.js");
