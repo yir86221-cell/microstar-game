@@ -12,6 +12,7 @@ Thumbs.db
 .openai/
 
 /dist/parent/
+/dist/native-lamp.js
 
 # Android deliverables and signing material stay on this computer.
 /releases/

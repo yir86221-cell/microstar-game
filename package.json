@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "node preview.mjs",
     "check": "node --check dist/game.js && node --check preview.mjs && node --check scripts/build-android.cjs",
-    "test": "node scripts/check-game.cjs && node scripts/check-parent-entry.cjs",
-    "build:parent": "node scripts/build-parent.cjs && node scripts/package-parent.cjs",
+    "test": "node scripts/check-game.cjs && node scripts/check-parent-entry.cjs && node scripts/check-native-lamp.cjs",
+    "build:parent": "node scripts/build-parent.cjs && node scripts/package-parent.cjs && node scripts/build-native-lamp.cjs",
     "android:sync": "npm run build:parent && cap sync android",
     "android:apk": "npm run android:sync && node scripts/build-android.cjs",
     "android:open": "cap open android"
@@ -16,10 +16,12 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@capacitor-community/bluetooth-le": "8.3.0",
     "@capacitor/android": "8.6.0",
     "@capacitor/core": "8.6.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.6.0"
+    "@capacitor/cli": "8.6.0",
+    "esbuild": "0.25.12"
   }
 }

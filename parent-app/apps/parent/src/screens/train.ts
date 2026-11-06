@@ -2,6 +2,7 @@ import { summarize } from "@microstar/core-domain";
 import { card, h } from "../lib/dom.js";
 import { pct, secs } from "../lib/format.js";
 import { device } from "../lib/device.js";
+import { manualLampButton } from "../lib/manual-lamp-button.js";
 import {
   LEVELS,
   MODE_HINT,
@@ -114,6 +115,8 @@ export const render: ScreenRenderer = (ctx) => {
       : "连接提示灯并开始"
     : "开始训练";
 
+  const startButton = h("button", { class: "btn primary block lg", onClick: () => startTraining(ctx) }, startText) as HTMLButtonElement;
+  const manualLamp = isPhysical ? manualLampButton(occupied => { startButton.disabled = occupied; }) : null;
   const planCard = card(
     h(
       "div",
@@ -127,14 +130,8 @@ export const render: ScreenRenderer = (ctx) => {
       h("span", null, MODE_NAME[plan.mode]),
       h("span", null, MODE_HINT[plan.mode]),
     ),
-    h(
-      "button",
-      {
-        class: "btn primary block lg",
-        onClick: () => startTraining(ctx),
-      },
-      startText,
-    ),
+    manualLamp?.el,
+    startButton,
     h("button", { class: "link-btn", onClick: () => ctx.navigate("plan") }, "调整参数 ›"),
     plan.stage === 3
       ? h(
@@ -173,6 +170,7 @@ export const render: ScreenRenderer = (ctx) => {
       levelList,
       planCard,
     ),
+    destroy: () => manualLamp?.destroy(),
   };
 };
 
