@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ALERT_UUID, LIGHT_UUID, SERVICE_UUID } from "@microstar/core-protocol";
+import { ALERT_UUID, LIGHT_UUID, STATUS_UUID, SERVICE_UUID } from "@microstar/core-protocol";
 import { connectLamp, ManualLamp, type LampConnection, type LampSettings } from "../src/lib/manual-lamp.js";
 
 const settings: LampSettings = { preset: "warmWhite", brightness: 80, photosensitive: false, highLightSensitivity: false, tactileSensitive: false };
@@ -19,6 +19,21 @@ function fake() {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("第四阶段手动控灯", () => {
+  it("reads real STATUS bytes through desktop Web Bluetooth", async () => {
+    const readValue=vi.fn(async()=>new DataView(Uint8Array.from([99,1,0,1]).buffer,1,3));
+    const getCharacteristic=vi.fn(async()=>({writeValue:vi.fn(async()=>{}),readValue}));
+    const selected=Object.assign(new EventTarget(),{gatt:{connected:true,connect:vi.fn(async()=>({getPrimaryService:async()=>({getCharacteristic})})),disconnect:vi.fn()}});
+    vi.stubGlobal("navigator",{bluetooth:{requestDevice:async()=>selected}});
+    const connection=await connectLamp(vi.fn());
+    expect(await connection.readStatus!()).toEqual([1,0,1]);
+    expect(getCharacteristic).toHaveBeenLastCalledWith(STATUS_UUID);
+    await connection.disconnect();
+  });
+  it("does not hide desktop connection errors behind disconnect events", async () => {
+    const selected=Object.assign(new EventTarget(),{gatt:{connected:false,connect:async()=>{selected.dispatchEvent(new Event('gattserverdisconnected'));throw Error('GATT unavailable');},disconnect:vi.fn()}});
+    vi.stubGlobal("navigator",{bluetooth:{requestDevice:async()=>selected}});
+    const off=vi.fn();await expect(connectLamp(off)).rejects.toThrow('GATT unavailable');expect(off).not.toHaveBeenCalled();
+  });
   it("matches the supplied example bytes and stops before disconnecting", async () => {
     const f=fake(); await f.lamp.toggle(settings);
     expect(f.events).toEqual([["LIGHT",0,0,0,255,80],["ALERT",1]]);
@@ -100,29 +115,6 @@ describe("第四阶段手动控灯", () => {
 });
 
 describe("控灯按钮范围", () => {
-  it("allows a native manual connection despite an existing mock connection", async () => {
-    const { device } = await import("../src/lib/device.js");
-    const { manualLampButton } = await import("../src/lib/manual-lamp-button.js");
-    vi.spyOn(device, "isConnected", "get").mockReturnValue(true);
-    vi.spyOn(device, "isMock", "get").mockReturnValue(true);
-    const f = fake();
-    Object.defineProperty(window, "microstarLampBridge", { value: {connect:f.connect}, configurable:true });
-    const ui = manualLampButton(vi.fn());
-    try {
-      (ui.el.querySelector("button") as HTMLButtonElement).click(); await flush();
-      expect(f.connect).toHaveBeenCalledOnce();
-    } finally { ui.destroy(); delete (window as Window & {microstarLampBridge?:unknown}).microstarLampBridge; }
-  });
-  it("still protects a real training connection", async () => {
-    const { device } = await import("../src/lib/device.js");
-    const { manualLampButton } = await import("../src/lib/manual-lamp-button.js");
-    vi.spyOn(device, "isConnected", "get").mockReturnValue(true);
-    vi.spyOn(device, "isMock", "get").mockReturnValue(false);
-    const ui = manualLampButton(vi.fn());
-    (ui.el.querySelector("button") as HTMLButtonElement).click();
-    expect(ui.el.textContent).toContain("已有训练设备连接");
-    ui.destroy();
-  });
   it("appears only in stage 4 and requests no connection while rendering", async () => {
     const {store}=await import("../src/lib/store.js");
     const {render}=await import("../src/screens/train.js");
@@ -132,6 +124,10 @@ describe("控灯按钮范围", () => {
       store.state.plan.stage=stage;
       const screen=render(context);
       expect(screen.el.querySelectorAll("[data-manual-lamp]").length).toBe(stage===4?1:0);
+      if (stage===4) {
+        expect(screen.el.textContent).not.toMatch(/连接提示灯并开始|开始实物训练|调整参数|按住目标|分钟/);
+        expect(screen.el.textContent).toContain("设置灯光与读取设备状态");
+      }
       screen.destroy?.();
     }
     expect(bluetooth.requestDevice).not.toHaveBeenCalled();

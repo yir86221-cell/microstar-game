@@ -1,4 +1,4 @@
-import { ALERT_UUID, LIGHT_UUID, SERVICE_UUID, DEVICE_NAME, LIGHT_PRESETS, encodeLight, type LightPresetName } from "@microstar/core-protocol";
+import { ALERT_UUID, LIGHT_UUID, STATUS_UUID, SERVICE_UUID, DEVICE_NAME, LIGHT_PRESETS, encodeLight, type LightPresetName } from "@microstar/core-protocol";
 
 // This manual control follows micro_star_client.js / micro_star_parent.html:
 // LIGHT is RGBWW + brightness; ALERT accepts only 01 (blink) / 00 (stop).
@@ -7,11 +7,12 @@ export interface LampConnection {
   writeLight(bytes: Uint8Array): Promise<void>;
   writeAlert(value: 0 | 1): Promise<void>;
   disconnect(): Promise<void>;
+  readStatus?(): Promise<number[]>;
 }
 export interface LampBridge {
   connect(onDisconnect: () => void, owner?: Window, onProgress?: (message: string) => void): Promise<LampConnection>;
 }
-interface Characteristic { writeValue(bytes: Uint8Array): Promise<void> }
+interface Characteristic { writeValue(bytes: Uint8Array): Promise<void>; readValue(): Promise<DataView> }
 interface LampDevice extends EventTarget {
   gatt?: {
     connected: boolean;
@@ -36,23 +37,31 @@ export async function connectLamp(onDisconnect: () => void, _owner?: Window, onP
   });
   const gatt = selected.gatt;
   if (!gatt) throw Error("设备未提供蓝牙 GATT 服务。");
-  selected.addEventListener("gattserverdisconnected", onDisconnect);
+  let established = false;
+  const disconnected = () => { if (established) onDisconnect(); };
+  selected.addEventListener("gattserverdisconnected", disconnected);
   try {
     onProgress?.("已选中 MicroStar，正在建立蓝牙连接…");
     const server = await gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
     const alert = await service.getCharacteristic(ALERT_UUID);
     const light = await service.getCharacteristic(LIGHT_UUID);
+    established = true;
     return {
       writeLight: bytes => light.writeValue(bytes),
       writeAlert: value => alert.writeValue(new Uint8Array([value])),
+      async readStatus() {
+        const status = await service.getCharacteristic(STATUS_UUID);
+        const data = await status.readValue();
+        return Array.from(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+      },
       async disconnect() {
-        selected.removeEventListener("gattserverdisconnected", onDisconnect);
+        selected.removeEventListener("gattserverdisconnected", disconnected);
         gatt.disconnect();
       },
     };
   } catch (error) {
-    selected.removeEventListener("gattserverdisconnected", onDisconnect);
+    selected.removeEventListener("gattserverdisconnected", disconnected);
     gatt.disconnect();
     throw error;
   }
@@ -146,5 +155,10 @@ export class ManualLamp {
       this.update({ busy: false, active: false, message: `停止未确认，请检查灯：${error instanceof Error ? error.message : String(error)}` });
     }
   }
-  dispose(): void { this.disposed = true; void this.stop(); }
+  dispose(): void { this.disposed = true; cancelLampSelection(); void this.stop(); }
+}
+
+export function cancelLampSelection(): void {
+  try { (window.top as Window & {microstarLampSelector?: {cancel(): boolean}})?.microstarLampSelector?.cancel(); }
+  catch { /* A browser's system chooser cannot be cancelled programmatically. */ }
 }

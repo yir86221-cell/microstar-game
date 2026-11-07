@@ -2,16 +2,16 @@
 
 ## 当前结果
 
-- 当前分支：`codex/android-v0.1.4-device-picker-fix`，基于 `codex/android-v0.1.3-ble-and-updates` 的 `cc6a930`。本次未合并 main。
+- 当前分支：`codex/android-v0.1.5-real-device-controls`，基于 `codex/android-v0.1.4-device-picker-fix` 的 `7e223ec`。本次未合并 main。
 - 独立目录：`D:\homework\2\微动星瞳-安卓`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.4 / versionCode 5。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.5 / versionCode 6。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
-- 本地 APK：`releases/microstar-android-v0.1.4.apk`，旁边的 `.sha256` 文件记录校验值。
+- 本地 APK：`releases/microstar-android-v0.1.5.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是延续旧版签名的侧载测试包，尚未上架应用商店。
 
 ## 如何安装与更新
 
-从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.4.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
+从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.5.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
 
 0.1.2 及之前版本不含更新功能，必须先手动安装一次 0.1.3 或更高版本。之后：
 
@@ -21,6 +21,14 @@
 - 下载使用手机浏览器，完成后需要用户打开 APK 并确认安装。没有后台静默安装，也没有远程替换游戏代码。
 - 只有发布了 `android-vX.Y.Z` 标签及同版本 APK 的 GitHub Release 才会被识别；包含测试版 prerelease，忽略草稿和没有 APK 的版本。仅推送代码或合并 main 不会更新手机。
 - 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。GitHub 不可访问或接口限流时需稍后重试。
+
+### 0.1.5 真实设备控制
+
+删除实物演示启动与模拟连接，设备页使用同一真实蓝牙连接入口。完整清单与未支持能力见 [说明](real-device-controls.md)。前三阶段游戏及原有记录不变。
+
+自动检查、124 项家长端测试、类型检查、APK 构建、同签名校验及 12 个 Web 文件一致性检查通过。手机 412×915、平板 1024×768 浏览器布局已检查；没有连接真实安卓手机和 MicroStar，真实硬件效果待测。
+
+APK SHA-256：`025b60f1fa0a943e3b38906ff65842df088d5a9dbf0b44e24af4dacbc3c5e925`。
 
 ### 0.1.4 设备选择修复
 
@@ -105,7 +113,7 @@ Android APK 已成功编译、通过 apksigner 验证，包内全部儿童端及
 
 沿用上游的功能限制：
 
-- 0.1.2 的第四阶段手动控灯按钮已接入原生 BLE；原有设备页和自动训练回路仍保持原逻辑，不在本次扩展范围内。
+- 0.1.5 设备页已接入原生 BLE；旧自动实物训练回路及模拟设备已移除。
 - 云端抠图代理未部署、未配置真实凭据，默认使用本地处理。
 - 当前家长端的 P2/P3 内置关卡目录仍各列四关，与儿童端最新的 P2 十关/P3 黄杯目录尚未完全对齐；本次打包保留上游内容，没有改动这些关卡定义。新增关卡可从儿童端菜单进入，自定义关卡跨端对应仍需上游修正。
 

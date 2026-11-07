@@ -1,9 +1,8 @@
 import { h } from "./dom.js";
 import { store } from "./store.js";
-import { device } from "./device.js";
 import { ManualLamp } from "./manual-lamp.js";
 
-export function manualLampButton(onOccupied: (occupied: boolean) => void) {
+export function manualLampButton(onOccupied: (occupied: boolean) => void = () => {}) {
   const status = h("p", { class: "hint", role: "status", "aria-live": "polite" });
   const button = h("button", { class: "btn ghost block", type: "button", "data-manual-lamp": "true" }) as HTMLButtonElement;
   const lamp = new ManualLamp(state => {
@@ -17,10 +16,6 @@ export function manualLampButton(onOccupied: (occupied: boolean) => void) {
   button.setAttribute("aria-pressed", "false");
   status.textContent = lamp.state.message;
   button.addEventListener("click", () => {
-    if (!lamp.state.active && device.isConnected && !device.isMock) {
-      status.textContent = "已有训练设备连接，请先结束实物训练或关闭并重新进入家长端，再使用手动控灯。";
-      return;
-    }
     const { plan, child } = store.state;
     void lamp.toggle({ preset: plan.preset, brightness: plan.brightness,
       photosensitive: child.photosensitive, highLightSensitivity: child.highLightSensitivity,

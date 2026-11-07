@@ -1,6 +1,6 @@
 // Runs in the top WebView. The parent UI is an iframe; Capacitor callbacks
 // belong to this top window, so never initialize the native plugin in the frame.
-export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT_UUID, DEVICE_NAME }, selectDevice = options => client.requestDevice(options)) {
+export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT_UUID, STATUS_UUID, DEVICE_NAME }, selectDevice = options => client.requestDevice(options)) {
   let selecting = false;
   let session = null;
   const bytes = values => new DataView(Uint8Array.from(values).buffer);
@@ -60,6 +60,11 @@ export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT
         ready();
         owned.established = true;
         return {
+          async readStatus() {
+            ready();
+            const data = await client.read(owned.id, SERVICE_UUID, STATUS_UUID);
+            return Array.from(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+          },
           async writeLight(values) {
             ready();
             const data = Array.from(values);

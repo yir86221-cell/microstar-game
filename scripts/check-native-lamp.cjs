@@ -4,7 +4,7 @@ const path = require('node:path');
 async function main() {
   const { createNativeLampBridge } = await import('../native/lamp-bridge-core.mjs');
   const uuid = n => `8a1f000${n}-3c4d-4e5f-9a6b-7c8d9e0f1a2b`;
-  const protocol = { SERVICE_UUID:uuid(1),ALERT_UUID:uuid(2),LIGHT_UUID:uuid(3),DEVICE_NAME:'MicroStar' };
+  const protocol = { SERVICE_UUID:uuid(1),ALERT_UUID:uuid(2),LIGHT_UUID:uuid(3),STATUS_UUID:uuid(5),DEVICE_NAME:'MicroStar' };
   const calls=[];
   let disconnected;
   const client={
@@ -13,6 +13,7 @@ async function main() {
     async connect(id,callback,options){disconnected=callback;calls.push(['connect',id,options]);},
     async write(id,service,char,data){calls.push(['write',service,char,Array.from(new Uint8Array(data.buffer))]);},
     async disconnect(id){calls.push(['disconnect',id]);},
+    async read(id,service,char){calls.push(['read',id,service,char]);return new DataView(Uint8Array.from([99,1,0,1,99]).buffer,1,3);},
   };
   const bridge=createNativeLampBridge(client,protocol);
   let events=0;
@@ -21,6 +22,8 @@ async function main() {
   assert.deepEqual(calls[1],['request',{name:'MicroStar',optionalServices:[uuid(1)]}]);
   assert.deepEqual(calls[2],['disconnect','test-lamp'],'clear stale GATT before registering a new connection');
   assert.deepEqual(calls[3],['connect','test-lamp',{timeout:15000}]);
+  assert.deepEqual(await c.readStatus(),[1,0,1]);
+  assert.deepEqual(calls.at(-1),['read','test-lamp',uuid(1),uuid(5)]);
   await bridge.stopActive();assert.equal(events,0,'permission/selection pause cannot cancel a new connection');
   await c.writeLight(new Uint8Array([0,0,0,255,80]));await c.writeAlert(1);
   assert.deepEqual(calls.slice(-2),[['write',uuid(1),uuid(3),[0,0,0,255,80]],['write',uuid(1),uuid(2),[1]]]);
