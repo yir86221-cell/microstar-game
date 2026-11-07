@@ -13,6 +13,8 @@ export const ALERT_UUID = "8a1f0002-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
 export const LIGHT_UUID = "8a1f0003-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
 /** 拿起/放下状态，notify 7 字节 */
 export const MOTION_UUID = "8a1f0004-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
+/** 主动读取：闪烁、运动标记、IMU 状态，各 1 字节。 */
+export const STATUS_UUID = "8a1f0005-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
 
 /** 扫描过滤器用的设备名 */
 export const DEVICE_NAME = "MicroStar";

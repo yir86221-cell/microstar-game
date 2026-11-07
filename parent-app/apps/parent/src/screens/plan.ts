@@ -9,17 +9,15 @@ const WINDOWS: [number, string][] = [
   [60_000, "60 秒"],
 ];
 
-const MINUTES: [number, string][] = [
-  [10, "10 分钟"],
-  [15, "15 分钟"],
-  [20, "20 分钟"],
-];
-
 const MODES: AccessMode[] = ["slap", "precise", "dwell"];
 
 export const render: ScreenRenderer = (ctx) => {
   const plan = store.state.plan;
   const isPhysical = plan.stage === 4;
+  if (isPhysical) return {el:h("div",{class:"screen"},h("h1",null,"实物灯光设置"),
+    h("p",{class:"hint"},"实物阶段由家长手动控灯。颜色和亮度在设备页设置。"),
+    h("button",{class:"btn primary",onClick:()=>ctx.navigate("device")},"打开设备页"),
+    h("button",{class:"btn ghost",onClick:()=>ctx.navigate("train")},"返回训练"))};
 
   const modeCard = card(
     h("div", { class: "card-head" }, h("h2", null, "回应方式")),
@@ -53,59 +51,7 @@ export const render: ScreenRenderer = (ctx) => {
       }),
     ),
     h("p", { class: "hint" }, "CVI 的反应可能慢到 20 秒，宁长不短。这个值会一起传给儿童模式。"),
-    selectRow("单次最多练（实物）", plan.maxMinutes, MINUTES, (v) =>
-      store.update((s) => {
-        s.plan.maxMinutes = v;
-      }),
-    ),
-    h("p", { class: "hint" }, "儿童模式每关固定 3 回合，由它自己控制时长；这一项只约束实物训练。"),
   );
-
-  const loopCard = isPhysical
-    ? card(
-        h("div", { class: "card-head" }, h("h2", null, "实物回路")),
-        selectRow(
-          "每轮亮灯",
-          plan.loop.lightOnMs,
-          [
-            [15_000, "15 秒"],
-            [30_000, "30 秒"],
-            [45_000, "45 秒"],
-          ],
-          (v) =>
-            store.update((s) => {
-              s.plan.loop.lightOnMs = v;
-            }),
-        ),
-        selectRow(
-          "熄灭间隔",
-          plan.loop.gapMs,
-          [
-            [5_000, "5 秒"],
-            [8_000, "8 秒"],
-            [12_000, "12 秒"],
-          ],
-          (v) =>
-            store.update((s) => {
-              s.plan.loop.gapMs = v;
-            }),
-        ),
-        selectRow(
-          "轮数",
-          plan.loop.rounds,
-          [
-            [6, "6 轮"],
-            [10, "10 轮"],
-            [15, "15 轮"],
-          ],
-          (v) =>
-            store.update((s) => {
-              s.plan.loop.rounds = v;
-            }),
-        ),
-        h("p", { class: "hint" }, "亮灯时间不能短，孩子可能要好一会儿才看见。"),
-      )
-    : null;
 
   const audioCard = isPhysical
     ? null
@@ -176,7 +122,6 @@ export const render: ScreenRenderer = (ctx) => {
       modeCard,
       rhythmCard,
       audioCard,
-      loopCard,
       h("button", { class: "btn primary block lg", onClick: () => ctx.navigate("train") }, "好了"),
     ),
   };

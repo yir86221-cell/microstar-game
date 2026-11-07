@@ -62,7 +62,7 @@ export const render: ScreenRenderer = (ctx) => {
     "div",
     { class: "entries" },
     entry("训练记录", `每次的详细数据 · ${sessions.length} 次`, () => ctx.navigate("records")),
-    entry("调整参数", `${STAGE_NAME[state.plan.stage]} · ${state.plan.maxMinutes} 分钟`, () =>
+    entry("调整参数", STAGE_NAME[state.plan.stage], () =>
       ctx.navigate("plan"),
     ),
     entry("导出 CSV", "原始回合数据", () => downloadCsv(sessions)),

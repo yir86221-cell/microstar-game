@@ -2,11 +2,11 @@
 
 ## 安卓独立分支
 
-安卓基础分支为 `feature/android-v0.1.0-app`；本次 0.1.4 设备选择修复独立保存在 `codex/android-v0.1.4-device-picker-fix`，包含此前家长入口及第四阶段控灯。
+安卓基础分支为 `feature/android-v0.1.0-app`；本次 0.1.5 真实设备控制独立保存在 `codex/android-v0.1.5-real-device-controls`，包含此前家长入口及第四阶段控灯。
 电脑控灯此前已合并 main；本次安卓开发在独立 worktree 中完成，不合并 main，也不更新 Sites 网站。
 
 测试安装包：`releases/microstar-android-debug.apk`（本地构建产物，不进 Git）。
-安卓 0.1.4 测试包通过 [GitHub Releases](https://github.com/yir86221-cell/microstar-game/releases) 提供；可覆盖安装旧版，尚未上架应用商店。首次需手动安装 0.1.3，以后联网打开 App 或返回前台时会检查新版，家长空间提供“检查更新 / 有新版本”入口。下载后仍需确认安装。
+安卓 0.1.5 测试包通过 [GitHub Releases](https://github.com/yir86221-cell/microstar-game/releases) 提供；可覆盖安装旧版，尚未上架应用商店。首次需手动安装 0.1.3，以后联网打开 App 或返回前台时会检查新版，家长空间提供“检查更新 / 有新版本”入口。下载后仍需确认安装。
 安装、构建、已验证内容和限制见 [安卓测试版说明](docs/android-app.md)。
 
 在安装 Node.js 22+、JDK 21、Android SDK 36 后首次执行：
@@ -19,7 +19,7 @@ npm run android:apk
 
 儿童端和构建后的家长端均打包在 APK 内，启动不依赖电脑或试玩网站。
 
-这是儿童游戏端的可交互原型，供小组讨论界面、玩法与操作方式。右下角家长入口可以打开家长端（架构、界面与 P0 代码都在 `parent-app/`）。本分支新增第四阶段手动蓝牙控灯按钮，说明见 [控灯使用说明](docs/phase4-manual-lamp.md)；原有自动训练及其他功能保持原样。
+这是儿童游戏端的可交互原型，供小组讨论界面、玩法与操作方式。右下角家长入口可以打开家长端（架构、界面与 P0 代码都在 `parent-app/`）。本分支新增第四阶段手动蓝牙控灯按钮，说明见 [控灯使用说明](docs/phase4-manual-lamp.md)；0.1.5 已移除实物阶段的演示启动与模拟设备，设备页改用真实蓝牙控制；支持范围见 [真实设备功能说明](docs/real-device-controls.md)。
 
 ## 小组成员从这里开始
 

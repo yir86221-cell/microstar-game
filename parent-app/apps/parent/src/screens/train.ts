@@ -1,7 +1,6 @@
 import { summarize } from "@microstar/core-domain";
 import { card, h } from "../lib/dom.js";
 import { pct, secs } from "../lib/format.js";
-import { device } from "../lib/device.js";
 import { manualLampButton } from "../lib/manual-lamp-button.js";
 import {
   LEVELS,
@@ -109,22 +108,15 @@ export const render: ScreenRenderer = (ctx) => {
       );
 
   // 今日计划
-  const startText = isPhysical
-    ? device.isConnected
-      ? "开始实物训练"
-      : "连接提示灯并开始"
-    : "开始训练";
-
-  const startButton = h("button", { class: "btn primary block lg", onClick: () => startTraining(ctx) }, startText) as HTMLButtonElement;
-  const manualLamp = isPhysical ? manualLampButton(occupied => { startButton.disabled = occupied; }) : null;
+  const startButton = isPhysical ? null : h("button", { class: "btn primary block lg", onClick: () => startTraining(ctx) }, "开始训练");
+  const manualLamp = isPhysical ? manualLampButton() : null;
   const planCard = card(
     h(
       "div",
       { class: "plan-head" },
       h("strong", null, isPhysical ? PHYSICAL_LEVEL.name : level.name),
-      h("span", { class: "muted" }, `${plan.maxMinutes} 分钟`),
     ),
-    h(
+    !isPhysical && h(
       "div",
       { class: "plan-meta" },
       h("span", null, MODE_NAME[plan.mode]),
@@ -132,7 +124,7 @@ export const render: ScreenRenderer = (ctx) => {
     ),
     manualLamp?.el,
     startButton,
-    h("button", { class: "link-btn", onClick: () => ctx.navigate("plan") }, "调整参数 ›"),
+    h("button", { class: "link-btn", onClick: () => ctx.navigate(isPhysical ? "device" : "plan") }, isPhysical ? "设置灯光与读取设备状态 ›" : "调整参数 ›"),
     plan.stage === 3
       ? h(
           "button",
@@ -163,7 +155,7 @@ export const render: ScreenRenderer = (ctx) => {
       h(
         "div",
         { class: "page-head" },
-        h("div", null, h("h1", null, STAGE_NAME[plan.stage]), h("p", { class: "sub" }, "选一关就能开始")),
+        h("div", null, h("h1", null, STAGE_NAME[plan.stage]), h("p", { class: "sub" }, isPhysical ? "连接提示灯，由家长观察与操作" : "选一关就能开始")),
       ),
       status,
       tabs,
@@ -188,7 +180,7 @@ function startTraining(ctx: { navigate: (p: string) => void }): void {
 
   // 第 4 阶是实物训练，儿童端没有对应关卡，留在家长端
   if (plan.stage === 4) {
-    ctx.navigate("physical");
+    ctx.navigate("device");
     return;
   }
 
