@@ -135,4 +135,7 @@
 .microstar-update a{background:#a8d5c8;color:#10201b;font-weight:700}
 .microstar-update [hidden]{display:none}
 .microstar-update button:disabled{opacity:.6}
+.microstar-lamp-picker .lamp-device-choice{min-height:76px;background:#a8d5c8;color:#10201b;white-space:normal;overflow-wrap:anywhere}
+.microstar-lamp-picker .lamp-device-choice strong,.microstar-lamp-picker .lamp-device-choice small{display:block}
+.microstar-lamp-picker .lamp-device-choice small{font-size:13px;margin-top:4px}
 @media(max-width:370px){.parent-toolbar:has(.app-update-entry){padding:0 10px;gap:4px}.parent-toolbar .app-update-entry{padding:8px;margin-right:0}.parent-toolbar:has(.app-update-entry) .small-btn{padding:8px;font-size:13px}}

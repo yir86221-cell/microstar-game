@@ -366,6 +366,7 @@ function markOffset(node,ev){try{if(!node||!ev||typeof ev.clientX!=='number')ret
 
 // Native Android back never advances a round or silently resumes a paused game.
 window.microstarAndroidBack=function(){
+  if(window.microstarLampSelector?.cancel())return true;
   if(window.microstarAppUpdates?.close())return true;
  if(S.overlay==='parent'){closeParent();return true;}
  if(S.page==='game'){

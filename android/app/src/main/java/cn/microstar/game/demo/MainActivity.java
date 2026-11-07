@@ -47,6 +47,7 @@ public class MainActivity extends BridgeActivity {
         if (bridge != null && bridge.getWebView() != null) {
             bridge.getWebView().evaluateJavascript(
                 "window.microstarAndroidPause && window.microstarAndroidPause();"
+                    + "window.microstarLampSelector?.cancel();"
                     + "window.microstarLampBridge?.stopActive().catch(console.warn)", null
             );
         }

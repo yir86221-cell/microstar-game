@@ -1,6 +1,6 @@
 // Runs in the top WebView. The parent UI is an iframe; Capacitor callbacks
 // belong to this top window, so never initialize the native plugin in the frame.
-export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT_UUID, DEVICE_NAME }) {
+export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT_UUID, DEVICE_NAME }, selectDevice = options => client.requestDevice(options)) {
   let selecting = false;
   let session = null;
   const bytes = values => new DataView(Uint8Array.from(values).buffer);
@@ -10,12 +10,14 @@ export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT
       selecting = true;
       let current = null;
       let abandoned = false;
+      const selection = new AbortController();
       let stage = '准备蓝牙';
       const progress = message => onProgress?.(message);
       // The iframe can be removed while its chooser or writes are pending.
       // Keep cleanup in the host realm so its promises survive iframe removal.
       const leave = () => {
         abandoned = true;
+        selection.abort();
         const owned = current;
         if (!owned || owned.dead) return;
         owned.dead = true;
@@ -30,7 +32,8 @@ export function createNativeLampBridge(client, { SERVICE_UUID, ALERT_UUID, LIGHT
         await client.initialize({ androidNeverForLocation: true });
         if (!await client.isEnabled()) await client.requestEnable();
         stage = '选择提示灯';
-        const selected = await client.requestDevice({ name: DEVICE_NAME, optionalServices: [SERVICE_UUID] });
+        if (abandoned) throw Error('已离开控灯页面，连接已取消。');
+        const selected = await selectDevice({ name: DEVICE_NAME, optionalServices: [SERVICE_UUID] }, { signal: selection.signal });
         if (abandoned) throw Error('已离开控灯页面，连接已取消。');
         stage = '清理旧蓝牙连接';
         progress('已选中 MicroStar，正在清理旧连接…');
