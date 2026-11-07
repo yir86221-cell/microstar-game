@@ -2,16 +2,16 @@
 
 ## 当前结果
 
-- 当前分支：`codex/android-v0.1.3-ble-and-updates`，基于 `codex/android-v0.1.2-phase4-lamp` 的 `5002c09`。本次未合并 main。
+- 当前分支：`codex/android-v0.1.4-device-picker-fix`，基于 `codex/android-v0.1.3-ble-and-updates` 的 `cc6a930`。本次未合并 main。
 - 独立目录：`D:\homework\2\微动星瞳-安卓`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.3 / versionCode 4。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.4 / versionCode 5。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
-- 本地 APK：`releases/microstar-android-v0.1.3.apk`，旁边的 `.sha256` 文件记录校验值。
+- 本地 APK：`releases/microstar-android-v0.1.4.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是延续旧版签名的侧载测试包，尚未上架应用商店。
 
 ## 如何安装与更新
 
-从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.3.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
+从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.4.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
 
 0.1.2 及之前版本不含更新功能，必须先手动安装一次 0.1.3 或更高版本。之后：
 
@@ -21,6 +21,16 @@
 - 下载使用手机浏览器，完成后需要用户打开 APK 并确认安装。没有后台静默安装，也没有远程替换游戏代码。
 - 只有发布了 `android-vX.Y.Z` 标签及同版本 APK 的 GitHub Release 才会被识别；包含测试版 prerelease，忽略草稿和没有 APK 的版本。仅推送代码或合并 main 不会更新手机。
 - 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。GitHub 不可访问或接口限流时需稍后重试。
+
+### 0.1.4 设备选择修复
+
+用户在白色原生设备弹窗点选 MicroStar 后收到取消事件，尚未进入连接。此次改用 `requestLEScan` 原生扫描，在 App 内展示“连接 MicroStar”大按钮与地址，用户明确点选后停止扫描再连接，绕开原 `requestDevice` 弹窗。原弹窗的手机兼容原因尚无实机日志确认。
+
+搜索 20 秒后停止扫描；已发现的设备仍可选择，没找到则提示重新尝试。弹窗外点击不取消；取消按钮、系统返回、离开页面或退到后台会清理扫描。重复点击只采纳一次，选择完成后的界面取消事件不会覆盖设备。连接与 LIGHT/ALERT 控灯字节保持不变。
+
+自动检查、选择器回归、家长端 118 项测试和类型检查通过；APK 编译、原签名校验与 12 个 Web 文件一致性校验通过。浏览器预览工具仍连接失败，未执行视觉预览或真实手机/灯具测试。新版本属于设备选择路径的修复，不能据此声称真灯已亮。
+
+APK SHA-256：`8c3363df2dc752328f792a5ba789a5c4860c4c0418003c90eb71d1cf28dfd6ac`。
 
 ### 0.1.3 蓝牙修复
 
