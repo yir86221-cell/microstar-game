@@ -2,25 +2,35 @@
 
 ## 当前结果
 
-- 当前分支：`codex/android-v0.1.5-real-device-controls`，基于 `codex/android-v0.1.4-device-picker-fix` 的 `7e223ec`。本次未合并 main。
+- 当前分支：`codex/android-v0.1.6-update-rate-limit`，基于 `codex/android-v0.1.5-real-device-controls` 的 `9bd1955`。本次未合并 main。
 - 独立目录：`D:\homework\2\微动星瞳-安卓`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.5 / versionCode 6。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.6 / versionCode 7。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
-- 本地 APK：`releases/microstar-android-v0.1.5.apk`，旁边的 `.sha256` 文件记录校验值。
+- 本地 APK：`releases/microstar-android-v0.1.6.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是延续旧版签名的侧载测试包，尚未上架应用商店。
 
 ## 如何安装与更新
 
-从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.5.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
+从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.6.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
 
 0.1.2 及之前版本不含更新功能，必须先手动安装一次 0.1.3 或更高版本。之后：
 
 - 启动 App 时后台检查 GitHub 的安卓发布列表；返回前台、进入家长端时也检查，同一进程最多每小时自动请求一次。
 - 家长空间右上方显示“检查更新”；发现新版时变为“有新版本”。点击后显示版本与 APK 下载按钮，不打断儿童游戏。
-- 手动检查不受一小时限制；联网失败只提示重试，不影响本地游戏。
+- 手动检查不受一小时限制；检查失败会区分接口限流、HTTP 错误、超时、返回数据异常与连接失败，并提供浏览器下载页入口，不影响本地游戏。
 - 下载使用手机浏览器，完成后需要用户打开 APK 并确认安装。没有后台静默安装，也没有远程替换游戏代码。
 - 只有发布了 `android-vX.Y.Z` 标签及同版本 APK 的 GitHub Release 才会被识别；包含测试版 prerelease，忽略草稿和没有 APK 的版本。仅推送代码或合并 main 不会更新手机。
-- 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。GitHub 不可访问或接口限流时需稍后重试。
+- 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。接口限流时按提示等待，或切换代理节点、使用浏览器下载页；整个 GitHub 都不可访问时仍需恢复网络访问。
+
+### 0.1.6 代理出口限流提示
+
+用户在同一手机开启代理后访问更新接口，看到 `rate limit / 请求过多`，确认不是手机未联网。旧版把所有错误统一显示为“请联网后重试”；本版识别 HTTP 429，以及带额度耗尽或限流信息的 HTTP 403。普通 403 不直接判断为限流。接口提供有效恢复时间时显示本机时间。
+
+GitHub 的[官方限流说明](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)规定：未认证请求按来源 IP 计算，每小时通常 60 次，共享代理出口可能被其他用户消耗额度。本次没有提高或绕过 GitHub 额度；新增的普通版本下载页入口可在 API 被限流时手动查看和下载，仍取决于该网络能否访问 GitHub 网页与下载服务。
+
+自动检查、124 项家长端测试、类型检查通过；更新测试覆盖限流、HTTP/网络/数据错误、超时、迟到响应、重新检查和下载链接。手机 412×915 与平板 1024×768 浏览器预览使用模拟 403 验证布局。未连接真实安卓手机，原生跳转和代理场景需用户实测。
+
+APK 构建通过，版本 0.1.6 / 7，沿用旧版签名。APK SHA-256：`1737ac4a83ad14b57c6e9a64d47cc9b009f62c532d7a9aecbb2f9d964791addd`。
 
 ### 0.1.5 真实设备控制
 
