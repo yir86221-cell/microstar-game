@@ -2,16 +2,16 @@
 
 ## 当前结果
 
-- 当前分支：`codex/android-v0.1.6-update-rate-limit`，基于 `codex/android-v0.1.5-real-device-controls` 的 `9bd1955`。本次未合并 main。
+- 当前分支：`codex/android-v0.1.7-photo-levels`，基于 `codex/android-v0.1.6-update-rate-limit` 的 `c77afd3`。本次未合并 main。
 - 独立目录：`D:\homework\2\微动星瞳-安卓`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.6 / versionCode 7。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.7 / versionCode 8。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
-- 本地 APK：`releases/microstar-android-v0.1.6.apk`，旁边的 `.sha256` 文件记录校验值。
+- 本地 APK：`releases/microstar-android-v0.1.7.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是延续旧版签名的侧载测试包，尚未上架应用商店。
 
 ## 如何安装与更新
 
-从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.6.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
+从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.7.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
 
 0.1.2 及之前版本不含更新功能，必须先手动安装一次 0.1.3 或更高版本。之后：
 
@@ -21,6 +21,10 @@
 - 下载使用手机浏览器，完成后需要用户打开 APK 并确认安装。没有后台静默安装，也没有远程替换游戏代码。
 - 只有发布了 `android-vX.Y.Z` 标签及同版本 APK 的 GitHub Release 才会被识别；包含测试版 prerelease，忽略草稿和没有 APK 的版本。仅推送代码或合并 main 不会更新手机。
 - 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。接口限流时按提示等待，或切换代理节点、使用浏览器下载页；整个 GitHub 都不可访问时仍需恢复网络访问。
+
+### 0.1.7 实物照片关卡
+
+第三阶段改用家长拍摄或选择的原色照片；保存后自动选中，按同一关卡 ID 进入儿童训练。照片本机保存，支持更名、替换和删除。使用及验证范围见 [照片关卡说明](photo-levels.md)。
 
 ### 0.1.6 代理出口限流提示
 
@@ -125,6 +129,6 @@ Android APK 已成功编译、通过 apksigner 验证，包内全部儿童端及
 
 - 0.1.5 设备页已接入原生 BLE；旧自动实物训练回路及模拟设备已移除。
 - 云端抠图代理未部署、未配置真实凭据，默认使用本地处理。
-- 当前家长端的 P2/P3 内置关卡目录仍各列四关，与儿童端最新的 P2 十关/P3 黄杯目录尚未完全对齐；本次打包保留上游内容，没有改动这些关卡定义。新增关卡可从儿童端菜单进入，自定义关卡跨端对应仍需上游修正。
+- 当前家长端的 P2 内置目录仍列四关，与儿童端 P2 十关尚未完全对齐；P3 照片关卡已统一；本次打包保留上游内容，没有改动这些关卡定义。新增关卡可从儿童端菜单进入，自定义关卡跨端对应仍需上游修正。
 
 此分支没有合并进 `main`，也没有发布 Sites 网站。后续同步原项目更新时应在此分支单独整合、重建 APK 并再次验证。
