@@ -13,6 +13,7 @@ Thumbs.db
 
 /dist/parent/
 /dist/native-lamp.js
+/parent-app/apps/parent/public/cutout/
 
 # Android deliverables and signing material stay on this computer.
 /releases/
