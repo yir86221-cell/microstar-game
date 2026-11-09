@@ -2,15 +2,14 @@ import { summarize } from "@microstar/core-domain";
 import { card, h } from "../lib/dom.js";
 import { pct, secs } from "../lib/format.js";
 import { manualLampButton } from "../lib/manual-lamp-button.js";
+import { readCustomLevels } from "../lib/customLevels.js";
 import {
-  LEVELS,
   MODE_HINT,
   MODE_NAME,
   PHASES,
   PHYSICAL_LEVEL,
   STAGE_NAME,
   lastSession,
-  levelById,
   levelsOf,
   store,
   todaySessions,
@@ -27,7 +26,9 @@ export const render: ScreenRenderer = (ctx) => {
   const state = store.state;
   const plan = state.plan;
   const isPhysical = plan.stage === 4;
-  const level = levelById(plan.levelId) ?? LEVELS[0]!;
+  const available = isPhysical ? [PHYSICAL_LEVEL] : levelsOf(plan.stage as 1 | 2 | 3);
+  const level = available.find(l => l.id === plan.levelId) ?? available[0];
+  const photos = readCustomLevels();
   const today = todaySessions();
   const last = lastSession();
   const lastSummary = last ? summarize(last.trials) : null;
@@ -44,7 +45,7 @@ export const render: ScreenRenderer = (ctx) => {
           onClick: () => {
             if (plan.stage === tab.stage) return;
             const fallback =
-              tab.stage === 4 ? PHYSICAL_LEVEL.id : levelsOf(tab.stage as 1 | 2 | 3)[0]!.id;
+              tab.stage === 4 ? PHYSICAL_LEVEL.id : levelsOf(tab.stage as 1 | 2 | 3)[0]?.id ?? "";
             store.update((s) => {
               s.plan.stage = tab.stage;
               s.plan.levelId = fallback;
@@ -95,7 +96,8 @@ export const render: ScreenRenderer = (ctx) => {
                 ctx.rerender();
               },
             },
-            h("span", { class: "level-dot", style: { background: lv.color } }),
+            lv.kind === "custom" ? h("img", { class: "custom-thumb", src: photos.find(p => p.id === lv.id)?.image, alt: lv.name })
+              : h("span", { class: "level-dot", style: { background: lv.color } }),
             h(
               "div",
               { class: "level-text" },
@@ -108,15 +110,18 @@ export const render: ScreenRenderer = (ctx) => {
       );
 
   // 今日计划
-  const startButton = isPhysical ? null : h("button", { class: "btn primary block lg", onClick: () => startTraining(ctx) }, "开始训练");
+  const startButton = isPhysical || !level ? null : h("button", { class: "btn primary block lg", onClick: () => {
+    store.update(s => { s.plan.levelId = level.id; });
+    startTraining(ctx);
+  } }, "开始训练");
   const manualLamp = isPhysical ? manualLampButton() : null;
   const planCard = card(
     h(
       "div",
       { class: "plan-head" },
-      h("strong", null, isPhysical ? PHYSICAL_LEVEL.name : level.name),
+      h("strong", null, level?.name ?? "还没有实物照片关卡"),
     ),
-    !isPhysical && h(
+    !isPhysical && !!level && h(
       "div",
       { class: "plan-meta" },
       h("span", null, MODE_NAME[plan.mode]),
@@ -124,14 +129,15 @@ export const render: ScreenRenderer = (ctx) => {
     ),
     manualLamp?.el,
     startButton,
-    h("button", { class: "link-btn", onClick: () => ctx.navigate(isPhysical ? "device" : "plan") }, isPhysical ? "设置灯光与读取设备状态 ›" : "调整参数 ›"),
+    !!level && h("button", { class: "link-btn", onClick: () => ctx.navigate(isPhysical ? "device" : "plan") }, isPhysical ? "设置灯光与读取设备状态 ›" : "调整参数 ›"),
     plan.stage === 3
       ? h(
           "button",
-          { class: "link-btn", onClick: () => ctx.navigate("extract") },
-          "拍一件家里的东西，做成自己的关卡 ›",
+          { class: "btn primary block lg", onClick: () => ctx.navigate("extract") },
+          "拍照制作关卡",
         )
       : null,
+    plan.stage === 3 ? h("p", { class: "hint" }, "拍照或从相册选图，保存后可在这里和儿童端第三阶段训练。照片只保存在本机。") : null,
   );
 
   // 今天的状态
@@ -197,6 +203,7 @@ function startTraining(ctx: { navigate: (p: string) => void }): void {
     {
       type: "microstar:start-level",
       phase: plan.stage,
+      levelId: plan.levelId,
       index,
       mode: plan.mode,
       // 判定窗口交给儿童端：到时间没有回应就记一次「无反应」

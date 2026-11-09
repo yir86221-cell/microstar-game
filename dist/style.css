@@ -139,3 +139,5 @@
 .microstar-lamp-picker .lamp-device-choice strong,.microstar-lamp-picker .lamp-device-choice small{display:block}
 .microstar-lamp-picker .lamp-device-choice small{font-size:13px;margin-top:4px}
 @media(max-width:370px){.parent-toolbar:has(.app-update-entry){padding:0 10px;gap:4px}.parent-toolbar .app-update-entry{padding:8px;margin-right:0}.parent-toolbar:has(.app-update-entry) .small-btn{padding:8px;font-size:13px}}
+
+.photo-empty-content{max-width:600px;margin:auto;padding:28px;text-align:center}.photo-empty-content .art{width:160px;height:160px;margin:auto}.photo-empty-content p{color:#bbc8c4;line-height:1.7}

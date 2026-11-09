@@ -311,7 +311,7 @@ describe("计划页与档案页", () => {
 });
 
 describe("已拍的实物", () => {
-  it("能改名和删除；删掉当前选中的关卡会退回内置关", async () => {
+  it("删除最后一张照片后保留空选择，不退回卡通关卡", async () => {
     vi.resetModules();
     resetStorage();
 
@@ -354,6 +354,6 @@ describe("已拍的实物", () => {
     // 关卡没了，而且计划不能停在一个已经不存在的关卡上
     expect(root.textContent).not.toContain("我的水杯");
     expect(store.state.plan.levelId).not.toBe(level.id);
-    expect(store.state.plan.levelId).toBeTruthy();
+    expect(store.state.plan.levelId).toBe("");
   });
 });

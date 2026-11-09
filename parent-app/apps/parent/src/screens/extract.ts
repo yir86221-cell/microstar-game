@@ -1,312 +1,97 @@
 import { card, cardTitle, h } from "../lib/dom.js";
-import { extract, preparePhoto, readFileAsDataUrl } from "../lib/extract.js";
+import { preparePhoto, readFileAsDataUrl } from "../lib/extract.js";
 import { readCustomLevels, removeCustomLevel, saveCustomLevel } from "../lib/customLevels.js";
 import { levelsOf, store } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
 
-/**
- * 拍摄 → 提纯 → 存成第三阶段的自定义关卡。
- *
- * 照片全程在设备上：裁剪、压缩、抠图、单色化都在浏览器里做。
- * 只有在设置里配了抠图服务地址时，才会把**压过的、裁过的小图**传出去，
- * 而且服务端不落盘。
- */
+/** Keep real photo colours; processing and storage stay on device. */
 export const render: ScreenRenderer = (ctx) => {
-  const stage = store.state.plan.stage;
-  const canUse = stage === 3;
-
   const body = h("div", { class: "screen" });
-  let prepared = "";
-  let result: Awaited<ReturnType<typeof extract>> | null = null;
-  let busy = false;
-  let name = "";
-  let editingId: string | null = null;
-  let draftName = "";
-
+  let image = "", thumb = "", name = "", error = "", draftName = "";
+  let busy = false, alive = true;
+  let editingId: string | null = null, replacementId: string | null = null;
+  const input = (camera: boolean) => h("input", {
+    type: "file", accept: "image/*", ...(camera ? { capture: "environment" } : {}),
+    "aria-label": camera ? "拍摄实物照片" : "选择实物照片", hidden: true,
+    onChange: async (event: Event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file || busy) return;
+      error = "";
+      if (!file.type.startsWith("image/") || file.size > 20 * 1024 * 1024) {
+        error = "请选择不超过 20 MB 的照片。"; paint(); return;
+      }
+      busy = true; paint();
+      try {
+        const photo = await preparePhoto(await readFileAsDataUrl(file), 768);
+        const small = await preparePhoto(photo, 160);
+        if (!alive) return;
+        image = photo; thumb = small;
+      } catch { if (alive) error = "无法读取这张照片，请重新拍摄或选择 JPG、PNG 照片。"; }
+      finally { if (alive) { busy = false; paint(); } }
+    },
+  }) as HTMLInputElement;
+  const camera = input(true), gallery = input(false);
+  function attempt(action: () => void): void {
+    error = "";
+    try { action(); } catch (cause) { error = cause instanceof Error ? cause.message : "保存失败，请重试。"; }
+    paint();
+  }
   function paint(): void {
-    const parts: HTMLElement[] = [];
-    if (!canUse) parts.push(noticeCard());
-    parts.push(introCard());
-    if (busy) parts.push(workingCard());
-    if (result) parts.push(reviewCard(result));
-    parts.push(libraryCard());
-    body.replaceChildren(...parts);
+    if (!alive) return;
+    body.replaceChildren(
+      card(cardTitle("拍照制作关卡", "第三阶段 · 实物照片"),
+        h("p", { class: "hint" }, "拍一件熟悉的物品，或从相册选择照片。尽量使用纯色背景，把物品拍完整。保留照片真实颜色与细节。"), camera, gallery,
+        h("div", { class: "row" },
+          h("button", { class: "btn primary grow", disabled: busy, onClick: () => { camera.value = ""; camera.click(); } }, "拍照"),
+          h("button", { class: "btn ghost grow", disabled: busy, onClick: () => { gallery.value = ""; gallery.click(); } }, "从相册选择")),
+        h("p", { class: "hint" }, "照片只保存在这台设备，不上传。电脑上可选择图片文件。")),
+      ...(busy ? [card(h("p", { role: "status" }, "正在处理照片…"))] : []),
+      ...(error ? [h("p", { class: "notice", role: "alert" }, error)] : []),
+      ...(image ? [card(cardTitle(replacementId ? "替换关卡照片" : "照片预览", "训练时使用这张图"),
+        h("img", { class: "photo-level-preview", src: image, alt: "训练照片预览" }),
+        h("label", { class: "field" }, h("span", null, "关卡名称"), h("input", {
+          type: "text", value: name, maxLength: 40, placeholder: "例如：我的水杯",
+          onInput: (event: Event) => { name = (event.target as HTMLInputElement).value; },
+        })),
+        h("button", { class: "btn primary block lg", disabled: busy, onClick: () => attempt(() => {
+          const label = name.trim(); if (!label) throw Error("请先填写关卡名称。");
+          const previous = readCustomLevels().find(p => p.id === replacementId);
+          const id = previous?.id ?? `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+          saveCustomLevel({ id, name: label, target: label, color: "#a8d5c8", image, thumb, createdAt: previous?.createdAt ?? Date.now() });
+          store.update(s => { s.plan.stage = 3; s.plan.levelId = id; }); ctx.navigate("train");
+        }) }, "保存并返回训练"),
+        h("button", { class: "link-btn", disabled: busy, onClick: () => { image = ""; replacementId = null; name = ""; error = ""; paint(); } }, "取消这张照片"))] : []), library());
   }
-
-  /** 已拍的实物：改名、删除。没有这个列表，拍糊的就永远留在那了。 */
-  function libraryCard(): HTMLElement {
+  function library(): HTMLElement {
     const items = readCustomLevels();
-    if (items.length === 0) {
-      return card(
-        cardTitle("已拍的实物", "0 个"),
-        h("p", { class: "hint" }, "还没有。拍一个就会出现在这里，也会出现在第三阶段的关卡列表里。"),
-      );
-    }
-
-    return card(
-      cardTitle("已拍的实物", `${items.length} 个`),
-      ...items.map((item) => {
-        if (editingId === item.id) {
-          const input = h("input", {
-            type: "text",
-            value: item.name,
-            onChange: (event: Event) => {
-              draftName = (event.target as HTMLInputElement).value;
-            },
-          }) as HTMLInputElement;
-
-          return h(
-            "div",
-            { class: "list-row" },
-            h(
-              "div",
-              { class: "list-main", style: { flex: "1 1 auto" } },
-              h("strong", null, "改名"),
-              input,
-            ),
-            h(
-              "button",
-              {
-                class: "btn ghost small",
-                onClick: () => {
-                  const label = (draftName || item.name).trim() || item.name;
-                  saveCustomLevel({ ...item, name: label, target: label });
-                  editingId = null;
-                  draftName = "";
-                  paint();
-                },
-              },
-              "保存",
-            ),
-            h(
-              "button",
-              {
-                class: "btn ghost small",
-                onClick: () => {
-                  editingId = null;
-                  draftName = "";
-                  paint();
-                },
-              },
-              "取消",
-            ),
-          );
-        }
-
-        return h(
-          "div",
-          { class: "list-row" },
-          h(
-            "div",
-            { class: "list-main" },
-            h(
-              "div",
-              { class: "custom-line" },
-              h("img", { class: "custom-thumb", src: item.thumb || item.image, alt: "" }),
-              h("strong", null, item.name),
-            ),
-            h("span", { class: "muted" }, `建于 ${new Date(item.createdAt).toLocaleDateString("zh-CN")}`),
-          ),
-          h(
-            "button",
-            {
-              class: "btn ghost small",
-              onClick: () => {
-                editingId = item.id;
-                draftName = item.name;
-                paint();
-              },
-            },
-            "改名",
-          ),
-          h(
-            "button",
-            {
-              class: "btn ghost small danger",
-              onClick: () => {
-                if (!window.confirm(`删掉「${item.name}」？训练记录不会删，但这个关卡不能再用了。`)) return;
+    return card(cardTitle("已拍的实物", `${items.length} 关`),
+      ...(!items.length ? [h("p", { class: "hint" }, "还没有照片关卡。拍照并保存后，儿童端第三阶段会显示同一张照片。")] : []),
+      ...items.map(item => {
+        if (editingId === item.id) return h("div", { class: "list-row" },
+          h("input", { type: "text", "aria-label": "新关卡名称", value: draftName, maxLength: 40,
+            onInput: (e: Event) => { draftName = (e.target as HTMLInputElement).value; },
+            onChange: (e: Event) => { draftName = (e.target as HTMLInputElement).value; } }),
+          h("button", { class: "btn ghost small", onClick: () => attempt(() => {
+            const label = draftName.trim(); if (!label) throw Error("名称不能为空。");
+            saveCustomLevel({ ...item, name: label, target: label }); editingId = null;
+          }) }, "保存"),
+          h("button", { class: "btn ghost small", onClick: () => { editingId = null; paint(); } }, "取消"));
+        return h("div", { class: "photo-library-item" },
+          h("div", { class: "custom-line" }, h("img", { class: "custom-thumb", src: item.image, alt: item.name }), h("strong", null, item.name)),
+          h("div", { class: "row" },
+            h("button", { class: "btn ghost small", disabled: busy, onClick: () => { editingId = item.id; draftName = item.name; paint(); } }, "改名"),
+            h("button", { class: "btn ghost small", disabled: busy, onClick: () => { replacementId = item.id; name = item.name; image = item.image; thumb = item.thumb; paint(); } }, "更换照片"),
+            h("button", { class: "btn ghost small danger", disabled: busy, onClick: () => {
+              if (!window.confirm(`删掉「${item.name}」？训练记录会保留。`)) return;
+              attempt(() => {
                 removeCustomLevel(item.id);
-                // 删的正好是当前选中的关卡：退回第三阶段的第一个内置关，
-                // 否则 plan.levelId 会指向一个不存在的关卡
-                if (store.state.plan.levelId === item.id) {
-                  const fallback = levelsOf(3)[0]!;
-                  store.update((s) => {
-                    s.plan.levelId = fallback.id;
-                  });
-                }
-                paint();
-              },
-            },
-            "删除",
-          ),
-        );
-      }),
-    );
-  }
-
-  function noticeCard(): HTMLElement {
-    return card(
-      h("div", { class: "card-head" }, h("h2", null, "还没到这一阶段")),
-      h(
-        "p",
-        { class: "hint" },
-        "拍摄提纯是第三阶段「生活探索」的素材来源。现在整在别的阶段，可以先切到第三阶段再回来。",
-      ),
-      h("button", { class: "btn ghost block", onClick: () => ctx.navigate("train") }, "回到训练"),
-    );
-  }
-
-  function introCard(): HTMLElement {
-    const input = h("input", {
-      type: "file",
-      accept: "image/*",
-      capture: "environment",
-      style: { display: "none" },
-      onChange: async (event: Event) => {
-        const file = (event.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-        busy = true;
-        result = null;
-        paint();
-        try {
-          const raw = await readFileAsDataUrl(file);
-          prepared = await preparePhoto(raw, 512);
-          result = await extract(prepared);
-        } catch (error) {
-          result = null;
-          busy = false;
-          paint();
-          window.alert(String(error));
-          return;
-        }
-        busy = false;
-        paint();
-      },
-    }) as HTMLInputElement;
-
-    return card(
-      cardTitle("拍一件家里的东西", "只存在这台设备"),
-      h(
-        "div",
-        { class: "shot-frame" },
-        h("div", { class: "shot-guide" }, h("span", null, "把物品放在框里")),
-      ),
-      h(
-        "p",
-        { class: "hint" },
-        "放在纯色背景上（深色布最好），正上方俯拍，让物品占满框的六成以上。避开手和影子。",
-      ),
-      input,
-      h(
-        "button",
-        { class: "btn primary block lg", disabled: !canUse, onClick: () => input.click() },
-        "拍照或选图",
-      ),
-    );
-  }
-
-  function workingCard(): HTMLElement {
-    return card(h("p", { class: "hint" }, "正在处理…"));
-  }
-
-  function reviewCard(current: Awaited<ReturnType<typeof extract>>): HTMLElement {
-    const failed = current.problems.length > 0;
-    return card(
-      cardTitle("提纯结果", current.via === "api" ? "云端抠图" : "本地抠图"),
-      h(
-        "div",
-        { class: "compare" },
-        h(
-          "figure",
-          null,
-          h("img", { src: prepared, alt: "原图" }),
-          h("figcaption", null, "原图"),
-        ),
-        h(
-          "figure",
-          null,
-          h("img", { src: current.image, alt: "提纯后" }),
-          h("figcaption", null, "训练时看到的"),
-        ),
-      ),
-      failed
-        ? h("div", { class: "notice" }, current.problems.join("；"))
-        : h("p", { class: "hint" }, "轮廓看起来够清楚就可以保存。"),
-      h(
-        "label",
-        { class: "field" },
-        h("span", null, "名字"),
-        h("input", {
-          type: "text",
-          value: name || "我的东西",
-          onChange: (event: Event) => {
-            name = (event.target as HTMLInputElement).value;
-          },
-        }),
-      ),
-      h(
-        "div",
-        { class: "row" },
-        h(
-          "button",
-          {
-            class: "btn ghost grow",
-            onClick: () => {
-              result = null;
-              paint();
-            },
-          },
-          "重拍",
-        ),
-        h(
-          "button",
-          {
-            class: "btn primary grow",
-            disabled: failed,
-            onClick: () => {
-              const label = (name || "我的东西").trim() || "我的东西";
-              saveCustomLevel({
-                id: `custom-${Date.now().toString(36)}`,
-                name: label,
-                target: label,
-                color: current.color,
-                image: current.image,
-                thumb: current.thumb || current.image,
-                createdAt: Date.now(),
+                if (store.state.plan.levelId === item.id) store.update(s => { s.plan.levelId = levelsOf(3)[0]?.id ?? ""; });
+                if (replacementId === item.id) { replacementId = null; image = ""; name = ""; }
               });
-              ctx.navigate("train");
-            },
-          },
-          "存成关卡",
-        ),
-      ),
-      h(
-        "p",
-        { class: "hint" },
-        "单色化是有意为之：CVI 孩子对复杂纹理过载，去掉明暗和背景更容易认出来。",
-      ),
-    );
+            } }, "删除")));
+      }));
   }
-
   paint();
-
-  return {
-    el: h(
-      "div",
-      { class: "screen" },
-      h(
-        "header",
-        { class: "session-head" },
-        h("button", { class: "icon-btn", onClick: () => ctx.navigate("train") }, "←"),
-        h(
-          "div",
-          { class: "session-title" },
-          h("strong", null, "拍实物"),
-          h("span", null, "第三阶段的自定义关卡"),
-        ),
-        h("span", { class: "spacer" }),
-      ),
-      body,
-    ),
-  };
+  return { el: h("div", { class: "screen" }, h("header", { class: "session-head" },
+    h("button", { class: "btn ghost", onClick: () => ctx.navigate("train") }, "返回训练")), body), destroy: () => { alive = false; } };
 };

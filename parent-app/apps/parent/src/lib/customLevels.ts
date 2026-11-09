@@ -15,9 +15,9 @@ export interface CustomLevel {
   name: string;
   /** 目标物，默认用关卡名 */
   target: string;
-  /** 单色化之后的主色 */
+  /** 关卡标记色 */
   color: string;
-  /** 训练时呈现的图：黑底单色，dataURL */
+  /** 训练照片，dataURL；兼容旧版已保存的轮廓图 */
   image: string;
   /** 菜单缩略图 */
   thumb: string;
@@ -27,7 +27,8 @@ export interface CustomLevel {
 const isCustomLevel = (value: unknown): value is CustomLevel => {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<CustomLevel>;
-  return typeof v.id === "string" && typeof v.image === "string" && typeof v.name === "string";
+  return typeof v.id === "string" && /^custom-[\w-]+$/.test(v.id) && typeof v.image === "string" &&
+    /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v.image) && typeof v.name === "string";
 };
 
 /** 读全部自定义关卡。数据坏了就返回空数组，不要白屏。 */
@@ -59,7 +60,7 @@ function write(list: CustomLevel[]): void {
   try {
     localStorage.setItem(CUSTOM_LEVEL_KEY, JSON.stringify(list));
   } catch {
-    /* 隐私模式或配额用尽，忽略 */
+    throw new Error("保存失败：本机存储空间不足或不可用。请删除不用的照片关卡后重试。");
   }
 }
 
