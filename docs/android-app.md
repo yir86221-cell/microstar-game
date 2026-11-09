@@ -2,16 +2,16 @@
 
 ## 当前结果
 
-- 当前分支：`codex/android-v0.1.7-photo-levels`，基于 `codex/android-v0.1.6-update-rate-limit` 的 `c77afd3`。本次未合并 main。
+- 当前分支：`codex/android-v0.1.8-photo-cutout`，基于 `codex/android-v0.1.7-photo-levels` 的 `25e8dd9`。本次未合并 main。
 - 独立目录：`D:\homework\2\微动星瞳-安卓`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.7 / versionCode 8。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.8 / versionCode 9。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
-- 本地 APK：`releases/microstar-android-v0.1.7.apk`，旁边的 `.sha256` 文件记录校验值。
+- 本地 APK：`releases/microstar-android-v0.1.8.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是延续旧版签名的侧载测试包，尚未上架应用商店。
 
 ## 如何安装与更新
 
-从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.7.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
+从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.8.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
 
 0.1.2 及之前版本不含更新功能，必须先手动安装一次 0.1.3 或更高版本。之后：
 
@@ -21,6 +21,16 @@
 - 下载使用手机浏览器，完成后需要用户打开 APK 并确认安装。没有后台静默安装，也没有远程替换游戏代码。
 - 只有发布了 `android-vX.Y.Z` 标签及同版本 APK 的 GitHub Release 才会被识别；包含测试版 prerelease，忽略草稿和没有 APK 的版本。仅推送代码或合并 main 不会更新手机。
 - 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。接口限流时按提示等待，或切换代理节点、使用浏览器下载页；整个 GitHub 都不可访问时仍需恢复网络访问。
+
+### 0.1.8 本机主体抠图
+
+拍照或选图后自动识别中央主体；可点选另一件物品，使用擦除、补回与撤销修整边缘，并查看原图及黑底训练效果。保留压缩原图与编辑范围，保存后还能重新编辑。透明 PNG 等比例居中，物品保留原色。
+
+模型与运行文件随 APK 打包，使用时不联网、不上传照片。首次源码构建下载官方模型并核对 SHA-256，后续使用本地缓存；模型许可见 `third-party-cutout.txt` 和 `Apache-2.0-cutout.txt`。电脑网页需部署整个构建产物；首次加载模型需要能访问所在网站。低性能设备识别可能较慢，复杂背景需手动修整。
+
+根目录检查、135 项家长端测试、类型检查、APK 构建通过；浏览器验证真实模型、擦除/补回/撤销、重新编辑及训练，检查手机和平板布局。APK 20 个 Web 文件与构建输出一致；版本 0.1.8 / 9，旧版签名一致。未连接真实安卓手机，系统相机、触控和 WebView 推理性能待实测。
+
+APK SHA-256：`0ae554bff2ab69f85ed415e015c6513e9df36c7035ec389799ef33a004ff7961`。
 
 ### 0.1.7 实物照片关卡
 

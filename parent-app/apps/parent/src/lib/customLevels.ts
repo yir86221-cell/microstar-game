@@ -19,6 +19,9 @@ export interface CustomLevel {
   color: string;
   /** 训练照片，dataURL；兼容旧版已保存的轮廓图 */
   image: string;
+  /** Compressed original photo and editable alpha mask, kept locally for rework. */
+  sourceImage?: string;
+  maskImage?: string;
   /** 菜单缩略图 */
   thumb: string;
   createdAt: number;

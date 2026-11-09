@@ -1392,3 +1392,9 @@ html.embedded #tabbar {
 .photo-library-item .row{flex-wrap:wrap}
 .photo-target{border-radius:12px!important;overflow:hidden}
 .photo-target img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+
+.cutout-tools{display:flex;flex-wrap:wrap;gap:8px}.cutout-tools [aria-pressed=true]{background:#a8d5c8;color:#10201b}
+.cutout-panes{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0}.cutout-panes>div{min-width:0}
+.cutout-canvas,.cutout-preview{display:block;width:100%;height:300px;object-fit:contain;background:#000;border-radius:12px}
+.cutout-canvas{touch-action:none;cursor:crosshair}.cutout-editor [hidden]{display:none}
+@media(max-width:600px){.cutout-panes{grid-template-columns:1fr}.cutout-canvas{height:320px}.cutout-preview{height:240px}}

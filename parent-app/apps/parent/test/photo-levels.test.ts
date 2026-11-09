@@ -5,6 +5,10 @@ vi.mock('../src/lib/extract.js', () => ({
   readFileAsDataUrl: vi.fn(async () => 'data:image/png;base64,AAAA'),
   preparePhoto: vi.fn(async () => 'data:image/jpeg;base64,BBBB'),
 }));
+vi.mock('../src/lib/cutout-editor.js', () => ({createCutoutEditor:vi.fn(async(source:string)=>{
+  const el=document.createElement('img');el.className='photo-level-preview';el.src=source;
+  return {el,auto:vi.fn(async()=>{}),destroy:vi.fn(),export:async()=>({image:source,thumb:source,sourceImage:source,maskImage:'data:image/png;base64,CCCC'})};
+})}));
 const flush = async () => { for(let i=0;i<12;i++) await Promise.resolve(); };
 beforeEach(() => {
   vi.resetModules(); vi.clearAllMocks();
@@ -32,10 +36,11 @@ it('creates a persistent full-colour photo level and selects the same ID for tra
   expect(preparePhoto).toHaveBeenCalledWith('data:image/png;base64,AAAA',768);
   expect(screen.el.querySelector('.photo-level-preview')?.getAttribute('src')).toBe('data:image/jpeg;base64,BBBB');
   const name=screen.el.querySelector<HTMLInputElement>('input[type=text]')!; name.value='我的水杯';name.dispatchEvent(new Event('input'));
-  click(screen.el,'保存并返回训练');
+  click(screen.el,'保存并返回训练'); await flush();
   const saved=JSON.parse(localStorage.getItem('microstar.custom-levels.v1')!)[0];
   const {store,levelsOf}=await import('../src/lib/store.js');
   expect(store.state.plan.stage).toBe(3); expect(store.state.plan.levelId).toBe(saved.id);
+  expect(saved.sourceImage).toBe('data:image/jpeg;base64,BBBB');expect(saved.maskImage).toBe('data:image/png;base64,CCCC');
   expect(levelsOf(3).map(l=>l.id)).toEqual([saved.id]);expect(navigate).toHaveBeenCalledWith('train');
   screen.destroy?.(); vi.resetModules();
   const reloaded=await import('../src/lib/customLevels.js');expect(reloaded.readCustomLevels()[0]?.image).toBe(saved.image);
@@ -45,7 +50,7 @@ it('creates a persistent full-colour photo level and selects the same ID for tra
 it('keeps the photo and shows an error when saving exceeds device storage',async()=>{
   const {screen,navigate}=await maker();await choose(screen.el);
   const name=screen.el.querySelector<HTMLInputElement>('input[type=text]')!;name.value='杯子';name.dispatchEvent(new Event('input'));
-  vi.mocked(localStorage.setItem).mockImplementationOnce(()=>{throw Error('quota');});click(screen.el,'保存并返回训练');
+  vi.mocked(localStorage.setItem).mockImplementationOnce(()=>{throw Error('quota');});click(screen.el,'保存并返回训练'); await flush();
   expect(screen.el.querySelector('[role=alert]')?.textContent).toContain('保存失败');expect(navigate).not.toHaveBeenCalled();
   expect(screen.el.querySelector('.photo-level-preview')).not.toBeNull(); screen.destroy?.();
 });
@@ -60,4 +65,13 @@ it('leaving while a photo is loading cannot resurrect a stale draft',async()=>{
   vi.mocked(readFileAsDataUrl).mockImplementationOnce(()=>new Promise(r=>{resolve=r;}));
   const {screen,navigate}=await maker();await choose(screen.el);screen.destroy?.();resolve('data:image/png;base64,AAAA');await flush();
   expect(screen.el.querySelector('.photo-level-preview')).toBeNull();expect(navigate).not.toHaveBeenCalled();
+});
+it('cancelling while a replacement photo loads cannot recreate the cancelled draft',async()=>{
+  const {screen,navigate}=await maker();await choose(screen.el);
+  let resolve!: (v:string)=>void;
+  vi.mocked(readFileAsDataUrl).mockImplementationOnce(()=>new Promise(r=>{resolve=r;}));
+  await choose(screen.el);click(screen.el,'取消这张照片');
+  resolve('data:image/png;base64,AAAA');await flush();
+  expect(screen.el.querySelector('.photo-level-preview')).toBeNull();
+  expect(navigate).not.toHaveBeenCalled();screen.destroy?.();
 });
