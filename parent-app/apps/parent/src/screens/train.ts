@@ -1,7 +1,7 @@
 import { summarize } from "@microstar/core-domain";
 import { card, h } from "../lib/dom.js";
 import { pct, secs } from "../lib/format.js";
-import { manualLampButton } from "../lib/manual-lamp-button.js";
+
 import { readCustomLevels } from "../lib/customLevels.js";
 import {
   MODE_HINT,
@@ -114,7 +114,7 @@ export const render: ScreenRenderer = (ctx) => {
     store.update(s => { s.plan.levelId = level.id; });
     startTraining(ctx);
   } }, "开始训练");
-  const manualLamp = isPhysical ? manualLampButton() : null;
+  const physicalButton = isPhysical ? h("button", {class:"btn primary block lg", onClick:()=>ctx.navigate("physical")}, "进入实物训练") : null;
   const planCard = card(
     h(
       "div",
@@ -127,7 +127,7 @@ export const render: ScreenRenderer = (ctx) => {
       h("span", null, MODE_NAME[plan.mode]),
       h("span", null, MODE_HINT[plan.mode]),
     ),
-    manualLamp?.el,
+    physicalButton,
     startButton,
     !!level && h("button", { class: "link-btn", onClick: () => ctx.navigate(isPhysical ? "device" : "plan") }, isPhysical ? "设置灯光与读取设备状态 ›" : "调整参数 ›"),
     plan.stage === 3
@@ -149,7 +149,7 @@ export const render: ScreenRenderer = (ctx) => {
       { class: `pill ${today.length > 0 ? "ok" : ""}` },
       today.length > 0 ? `今天 ${today.length} 次` : "今天还没练",
     ),
-    lastSummary
+    last?.rangeResult ? h('span',{class:'muted'},last.rangeResult.outcome==='found'?`上次设备用时 ${secs(last.rangeResult.sample?.elapsedMs??null)}`:'上次实物训练中断') : lastSummary
       ? h("span", { class: "muted" }, `上次 ${pct(lastSummary.rate)} · ${secs(lastSummary.p50)}`)
       : h("span", { class: "muted" }, "还没有记录"),
   );
@@ -168,7 +168,7 @@ export const render: ScreenRenderer = (ctx) => {
       levelList,
       planCard,
     ),
-    destroy: () => manualLamp?.destroy(),
+
   };
 };
 

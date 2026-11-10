@@ -123,7 +123,7 @@ describe("控灯按钮范围", () => {
     for(const stage of [1,2,3,4] as const){
       store.state.plan.stage=stage;
       const screen=render(context);
-      expect(screen.el.querySelectorAll("[data-manual-lamp]").length).toBe(stage===4?1:0);
+      expect(screen.el.textContent?.includes("进入实物训练")).toBe(stage===4);
       if (stage===4) {
         expect(screen.el.textContent).not.toMatch(/连接提示灯并开始|开始实物训练|调整参数|按住目标|分钟/);
         expect(screen.el.textContent).toContain("设置灯光与读取设备状态");

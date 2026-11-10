@@ -1,18 +1,18 @@
-import { ALERT_UUID, LIGHT_UUID, STATUS_UUID, SERVICE_UUID, DEVICE_NAME, LIGHT_PRESETS, encodeLight, type LightPresetName } from "@microstar/core-protocol";
+import { ALERT_UUID, LIGHT_UUID, MOTION_UUID, STATUS_UUID, SERVICE_UUID, DEVICE_NAME, LIGHT_PRESETS, encodeLight, type LightPresetName, type TrainingCommand } from "@microstar/core-protocol";
 
-// This manual control follows micro_star_client.js / micro_star_parent.html:
-// LIGHT is RGBWW + brightness; ALERT accepts only 01 (blink) / 00 (stop).
-// It intentionally does not subscribe to MOTION or create training records.
+// Shared desktop/native transport. RangeLamp owns the current training flow.
+// The legacy ManualLamp controller below is retained for older call sites only.
 export interface LampConnection {
   writeLight(bytes: Uint8Array): Promise<void>;
-  writeAlert(value: 0 | 1): Promise<void>;
+  writeAlert(value: TrainingCommand): Promise<void>;
+  subscribeRange?(listener: (bytes: number[]) => void): Promise<() => Promise<void>>;
   disconnect(): Promise<void>;
   readStatus?(): Promise<number[]>;
 }
 export interface LampBridge {
   connect(onDisconnect: () => void, owner?: Window, onProgress?: (message: string) => void): Promise<LampConnection>;
 }
-interface Characteristic { writeValue(bytes: Uint8Array): Promise<void>; readValue(): Promise<DataView> }
+interface Characteristic extends EventTarget { value?: DataView; writeValue(bytes: Uint8Array): Promise<void>; readValue(): Promise<DataView>; startNotifications(): Promise<unknown>; stopNotifications(): Promise<unknown> }
 interface LampDevice extends EventTarget {
   gatt?: {
     connected: boolean;
@@ -46,10 +46,24 @@ export async function connectLamp(onDisconnect: () => void, _owner?: Window, onP
     const service = await server.getPrimaryService(SERVICE_UUID);
     const alert = await service.getCharacteristic(ALERT_UUID);
     const light = await service.getCharacteristic(LIGHT_UUID);
+    let unsubscribe: (() => Promise<void>) | undefined;
     established = true;
     return {
       writeLight: bytes => light.writeValue(bytes),
-      writeAlert: value => alert.writeValue(new Uint8Array([value])),
+      writeAlert: value => {
+        if (![0,1,2,16,17].includes(value)) return Promise.reject(Error('不支持的训练指令。'));
+        return alert.writeValue(new Uint8Array([value]));
+      },
+      async subscribeRange(listener) {
+        const range = await service.getCharacteristic(MOTION_UUID);
+        const emit = (value: DataView) => listener(Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength)));
+        const changed = () => { if (range.value) emit(range.value); };
+        range.addEventListener('characteristicvaluechanged', changed);
+        unsubscribe = async () => { range.removeEventListener('characteristicvaluechanged', changed); await range.stopNotifications(); };
+        try { await range.startNotifications(); emit(await range.readValue()); }
+        catch (error) { await unsubscribe().catch(() => {}); throw error; }
+        return unsubscribe;
+      },
       async readStatus() {
         const status = await service.getCharacteristic(STATUS_UUID);
         const data = await status.readValue();
@@ -57,7 +71,7 @@ export async function connectLamp(onDisconnect: () => void, _owner?: Window, onP
       },
       async disconnect() {
         selected.removeEventListener("gattserverdisconnected", disconnected);
-        gatt.disconnect();
+        try { await unsubscribe?.(); } finally { gatt.disconnect(); }
       },
     };
   } catch (error) {

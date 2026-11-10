@@ -2,16 +2,16 @@
 
 ## 当前结果
 
-- 当前分支：`codex/android-v0.1.9-cutout-worker`，基于 `codex/android-v0.1.8-photo-cutout` 的 `a6e3ce6`。本次未合并 main。
+- 当前分支：`codex/v0.1.10-range-training`，基于 `codex/android-v0.1.9-cutout-worker` 的 `3a1089d`。本次未合并 main。
 - 独立目录：`D:\homework\2\微动星瞳-安卓`。
-- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.9 / versionCode 10。
+- 应用名称：微动星瞳；包名：`cn.microstar.game.demo`；版本：0.1.10 / versionCode 11。
 - 最低 Android 7.0（API 24），建议使用较新的 Android System WebView。
-- 本地 APK：`releases/microstar-android-v0.1.9.apk`，旁边的 `.sha256` 文件记录校验值。
+- 本地 APK：`releases/microstar-android-v0.1.10.apk`，旁边的 `.sha256` 文件记录校验值。
 - 这是延续旧版签名的侧载测试包，尚未上架应用商店。
 
 ## 如何安装与更新
 
-从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.9.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
+从 [GitHub 安卓发布列表](https://github.com/yir86221-cell/microstar-game/releases) 下载 `microstar-android-v0.1.10.apk`，打开并确认覆盖安装。不要先卸载，以免清除本机记录。
 
 0.1.2 及之前版本不含更新功能，必须先手动安装一次 0.1.3 或更高版本。之后：
 
@@ -21,6 +21,10 @@
 - 下载使用手机浏览器，完成后需要用户打开 APK 并确认安装。没有后台静默安装，也没有远程替换游戏代码。
 - 只有发布了 `android-vX.Y.Z` 标签及同版本 APK 的 GitHub Release 才会被识别；包含测试版 prerelease，忽略草稿和没有 APK 的版本。仅推送代码或合并 main 不会更新手机。
 - 不向更新接口发送儿童档案、训练记录或照片；请求仅用于读取公开版本列表。接口限流时按提示等待，或切换代理节点、使用浏览器下载页；整个 GitHub 都不可访问时仍需恢复网络访问。
+
+### 0.1.10 新硬件测距训练
+
+电脑 Web Bluetooth 与安卓原生 BLE 均支持测距通知；准备颜色/亮度、试闪/恒亮、开始找、结束训练。按设备确认推进状态；无有效距离不开始，重复开始不重发，重复完成只记录一次，断线/数据超时按中断处理。需新版 10 字节测距固件，不兼容旧 IMU 数据。不会发送 0x03 呼吸或 0x80 震动屏蔽指令。详见 [测距训练说明](range-training.md)。
 
 ### 0.1.9 后台抠图修复
 

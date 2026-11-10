@@ -161,7 +161,7 @@ describe("家长端页面", () => {
   it("removed physical/debug routes cannot launch simulation", async () => {
     for (const route of ["#/physical", "#/debug"]) {
       const root=await mountAt(route);
-      expect(root.textContent).toContain("开始训练");
+      expect(root.textContent).toContain(route==="#/physical"?"开始找":"开始训练");
       expect(root.textContent).not.toContain("最近下发的字节");
       expect(root.textContent).not.toContain("模拟拿起");
     }
@@ -226,7 +226,7 @@ describe("家长端页面", () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
 
     const blink = [...root.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "开始闪烁",
+      (button) => button.textContent === "试灯闪烁",
     );
     expect(blink).toBeDefined();
     expect(blink?.disabled).toBe(true);
