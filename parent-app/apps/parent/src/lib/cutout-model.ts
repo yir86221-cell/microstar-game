@@ -1,28 +1,55 @@
-import type { InteractiveSegmenter } from '@mediapipe/tasks-vision';
-/** A per-editor model, closed on navigation; lazy loaded only while making a photo. */
+import type { CutoutReply, CutoutRequest, CutoutStage } from './cutout-protocol.js';
+
+export const CUTOUT_TIMEOUT_MS = 45_000;
+export class CutoutError extends Error {
+  constructor(public readonly code: 'cancelled' | 'timeout' | 'unavailable' | 'closed' | 'busy') { super(code); }
+}
+type Result = { mask: Uint8ClampedArray; width: number; height: number };
+type Job = { id: number; timer: ReturnType<typeof setTimeout>; resolve(value: Result): void; reject(error: Error): void; progress(stage: CutoutStage): void };
+
+/** Only messages cross the UI thread. Loading, image decoding and inference stay in a worker. */
 export class CutoutModel {
-  private task:InteractiveSegmenter|null=null;
-  private closed=false;
-  private loading:Promise<InteractiveSegmenter>|null=null;
-  private getTask():Promise<InteractiveSegmenter> {
-    return this.loading??=(async()=>{
-      const {FilesetResolver,InteractiveSegmenter}=await import('@mediapipe/tasks-vision');
-      const base=new URL('./cutout/',document.baseURI).href;
-      const task=await InteractiveSegmenter.createFromOptions(await FilesetResolver.forVisionTasks(base+'wasm'),{
-        baseOptions:{modelAssetPath:base+'magic-touch.task',delegate:'CPU'},
-      });
-      if(this.closed){task.close();throw Error('closed');}
-      this.task=task;return task;
-    })().catch(error=>{this.loading=null;throw error;});
+  private worker: Worker | null = null;
+  private job: Job | null = null;
+  private serial = 0;
+  private closed = false;
+
+  constructor(private readonly makeWorker = () => new Worker(new URL('./cutout.worker.ts', import.meta.url), { type: 'module' })) {}
+
+  select(image: HTMLImageElement, x: number, y: number, progress: (stage: CutoutStage) => void = () => {}): Promise<Result> {
+    if (this.closed) return Promise.reject(new CutoutError('closed'));
+    if (this.job) return Promise.reject(new CutoutError('busy'));
+    return new Promise((resolve, reject) => {
+      try {
+        const worker = this.worker ??= this.makeWorker();
+        const id = ++this.serial;
+        const timer = setTimeout(() => this.stop(new CutoutError('timeout')), CUTOUT_TIMEOUT_MS);
+        this.job = { id, timer, resolve, reject, progress };
+        worker.onmessage = (event: MessageEvent<CutoutReply>) => {
+          const reply = event.data, job = this.job;
+          if (this.worker !== worker || !job || reply.id !== job.id) return;
+          if (reply.type === 'progress') { job.progress(reply.stage); return; }
+          if (reply.type === 'error') { console.warn('Background cutout unavailable:', reply.message); this.stop(new CutoutError('unavailable')); return; }
+          clearTimeout(job.timer); this.job = null;
+          job.resolve({ mask: reply.mask, width: reply.width, height: reply.height });
+        };
+        worker.onerror = worker.onmessageerror = () => {
+          if (this.worker === worker) this.stop(new CutoutError('unavailable'));
+        };
+        const request: CutoutRequest = { id, source: image.src, x, y, base: new URL('./cutout/', document.baseURI).href };
+        worker.postMessage(request);
+      } catch {
+        this.stop(new CutoutError('unavailable'));
+        reject(new CutoutError('unavailable'));
+      }
+    });
   }
-  private source:HTMLImageElement|null=null;
-  async select(image:HTMLImageElement,x:number,y:number):Promise<{data:Float32Array;width:number;height:number}> {
-    const task=await this.getTask();
-    if(this.closed)throw Error('closed');
-    if(this.source!==image){task.setImage(image);this.source=image;}
-    const mask=task.segment([{brushMode:1,point:[{x,y}],isCompleted:true}]);
-    try{return {data:new Float32Array(mask.getAsFloat32Array()),width:mask.width,height:mask.height};}
-    finally{mask.close();}
+
+  private stop(error: CutoutError): void {
+    const job = this.job; this.job = null;
+    this.worker?.terminate(); this.worker = null;
+    if (job) { clearTimeout(job.timer); job.reject(error); }
   }
-  close():void{this.closed=true;this.task?.close();this.task=null;}
+  cancel(): void { this.stop(new CutoutError('cancelled')); }
+  close(): void { this.closed = true; this.stop(new CutoutError('closed')); }
 }

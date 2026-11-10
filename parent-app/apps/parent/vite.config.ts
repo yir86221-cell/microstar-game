@@ -5,6 +5,7 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
   base: "./",
+  worker: { format: "es" },
   server: {
     port: 5180,
     host: true,

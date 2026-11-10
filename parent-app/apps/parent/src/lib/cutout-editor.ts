@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { loadImage, preparePhoto } from './extract.js';
-import { CutoutModel } from './cutout-model.js';
+import { CutoutError, CutoutModel } from './cutout-model.js';
 import { applyAlpha, brush, imagePoint, maskBounds, type Point } from './cutout-mask.js';
 
 export interface CutoutEditor {
@@ -52,25 +52,31 @@ export async function createCutoutEditor(source:string,savedMask:string|undefine
     undo.disabled=busy||!history.length;
     marker.textContent=compare?'原图对照（切回后继续编辑）':'编辑区（可点选或涂抹）';
   }
-  function setBusy(value:boolean):void{busy=value;for(const b of controls)b.disabled=value;slider.disabled=value;undo.disabled=value||!history.length;onBusy(value);}
+  function setBusy(value:boolean):void{busy=value;for(const b of controls)b.disabled=value;slider.disabled=value;undo.disabled=value||!history.length;cancel.hidden=!value;onBusy(value);}
   async function select(point:Point):Promise<void>{
     if(busy||!alive)return;
-    setBusy(true);status.textContent='正在本机识别主体…';
-    // Give the progress message a chance to paint before local model inference.
-    await new Promise(resolve=>setTimeout(resolve,30));
+    setBusy(true);
+    const started=Date.now();let stage='准备识别';
+    const updateStatus=()=>{status.textContent=`${stage}… ${Math.floor((Date.now()-started)/1000)} 秒，可取消；超过 45 秒会自动停止。`;};
+    updateStatus();const timer=setInterval(updateStatus,1000);
     try{
       if(!alive)return;
-      const result=await model.select(original,point.x/w,point.y/hgt);
+      const result=await model.select(original,point.x/w,point.y/hgt,value=>{
+        stage={loading:'正在加载本机模型',encoding:'正在分析照片',segmenting:'正在分离主体'}[value];updateStatus();
+      });
       if(!alive)return;
-      const next=new Uint8ClampedArray(w*hgt);
-      for(let y=0;y<hgt;y++)for(let x=0;x<w;x++){
-        const score=result.data[Math.min(result.height-1,Math.floor(y*result.height/hgt))*result.width+Math.min(result.width-1,Math.floor(x*result.width/w))]!;
-        next[y*w+x]=Math.round(Math.max(0,Math.min(1,(score-.35)/.3))*255);
-      }
+      if(result.width!==w||result.height!==hgt)throw Error('dimensions');
+      const next=result.mask;
       if(!maskBounds(next,w,hgt))throw Error('empty');
-      pushHistory();mask=next;compare=false;draw();status.textContent='已生成抠图，请检查黑底效果。可以重新点选主体，或擦除、补回边缘。';
-    }catch(error){console.warn('Local cutout unavailable',error);if(alive)status.textContent='自动抠图未完成。可重新点选重试，也可用擦除、补回手动修整；原图仍保留。';}
-    finally{if(alive){setBusy(false);draw();}}
+      pushHistory();mask=next;compare=false;status.textContent='已生成抠图，请检查黑底效果。可以重新点选主体，或擦除、补回边缘。';
+    }catch(error){
+      if(alive)status.textContent=error instanceof CutoutError && error.code==='cancelled'
+        ? '已取消识别，原图和上次编辑结果保留。可手动修整或重新抠图。'
+        : error instanceof CutoutError && error.code==='timeout'
+        ? '识别超过 45 秒，已停止。原图和上次编辑结果保留，可手动修整或重试。'
+        : '当前设备未能完成后台抠图。可重新点选重试，也可用擦除、补回手动修整；原图仍保留。';
+    }
+    finally{clearInterval(timer);if(alive){setBusy(false);draw();}}
   }
   const controls:HTMLButtonElement[]=[];
   const button=(label:string,action:()=>void)=>{const b=h('button',{type:'button',class:'btn ghost small',onClick:action},label) as HTMLButtonElement;controls.push(b);return b;};
@@ -83,6 +89,7 @@ export async function createCutoutEditor(source:string,savedMask:string|undefine
     button('原图对照',()=>{compare=!compare;draw();}),
     button('重新抠图',()=>void select({x:w/2,y:hgt/2})),
     button('恢复完整原图',()=>{pushHistory();mask.fill(255);compare=false;draw();status.textContent='已恢复完整原图，可重新抠图或手动擦除背景。';}));
+  const cancel=h('button',{type:'button',class:'btn ghost',hidden:true,onClick:()=>model.cancel()},'取消识别') as HTMLButtonElement;
   function point(e:PointerEvent){return imagePoint(edit.getBoundingClientRect(),w,hgt,e.clientX,e.clientY);}
   edit.addEventListener('pointerdown',e=>{
     if(busy||compare||gesture||e.isPrimary===false||e.button!==0)return;
@@ -97,7 +104,7 @@ export async function createCutoutEditor(source:string,savedMask:string|undefine
     if(cancel)mask=gesture.before;else pushHistory(gesture.before);gesture=null;
     if(edit.hasPointerCapture?.(e.pointerId))edit.releasePointerCapture(e.pointerId);draw();};
   edit.addEventListener('pointerup',e=>finish(e));edit.addEventListener('pointercancel',e=>finish(e,true));edit.addEventListener('lostpointercapture',e=>finish(e));
-  const el=h('div',{class:'cutout-editor'},toolbar,h('label',{class:'field'},h('span',null,'画笔大小'),slider),status,
+  const el=h('div',{class:'cutout-editor'},toolbar,h('label',{class:'field'},h('span',null,'画笔大小'),slider),status,cancel,
     h('div',{class:'cutout-panes'},h('div',null,marker,edit),h('div',null,h('p',{class:'hint'},'黑底训练效果'),preview)));
   draw();
   return {el,auto:()=>select({x:w/2,y:hgt/2}),
