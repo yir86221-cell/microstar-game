@@ -8,8 +8,10 @@ import type { ScreenRenderer } from "../lib/nav.js";
 export const render: ScreenRenderer = (ctx) => {
   const state = store.state;
   const sessions = [...state.sessions].sort((a, b) => a.startedAt - b.startedAt);
-  const recent = sessions.slice(-8);
-  const allTrials = sessions.flatMap((s) => s.trials);
+  const screenSessions = sessions.filter(s=>!s.rangeResult);
+  const rangeSessions = sessions.filter(s=>!!s.rangeResult);
+  const recent = screenSessions.slice(-8);
+  const allTrials = screenSessions.flatMap((s) => s.trials);
   const summary = summarize(allTrials);
   const latency = latencyStats(allTrials);
 
@@ -44,7 +46,7 @@ export const render: ScreenRenderer = (ctx) => {
     h(
       "div",
       { class: "card-head" },
-      h("h2", null, "命中率"),
+      h("h2", null, "触屏命中率"),
       h("span", { class: "card-hint" }, `最近 ${recent.length} 次`),
     ),
     h("div", { class: "chart-wrap" }, chart),
@@ -53,8 +55,8 @@ export const render: ScreenRenderer = (ctx) => {
   const metrics = h(
     "div",
     { class: "stat-grid" },
-    stat("命中率", pct(summary.rate)),
-    stat("P50 反应", secs(latency.p50)),
+    stat("触屏命中率", pct(summary.rate)),
+    stat("触屏 P50 反应", secs(latency.p50)),
     stat("有效回合", String(summary.hits + summary.noResponse)),
   );
 
@@ -79,6 +81,7 @@ export const render: ScreenRenderer = (ctx) => {
         : null,
       trend,
       metrics,
+      rangeSessions.length ? card(h('h2',null,'实物寻找 · 设备测距'),h('p',{class:'hint'},`设备报告完成 ${rangeSessions.filter(s=>s.rangeResult?.outcome==='found').length} 次，中断 ${rangeSessions.filter(s=>s.rangeResult?.outcome==='aborted').length} 次。单次用时见训练记录，不计入触屏命中率。`)) : null,
       entries,
     ),
   };
@@ -97,9 +100,14 @@ function entry(title: string, sub: string, onClick: () => void): HTMLElement {
   );
 }
 
-function downloadCsv(sessions: { startedAt: number; stage: number; trials: unknown[] }[]): void {
-  const rows: string[] = ["会话时间,阶段,回合数,命中,无反应,命中率,P50(ms),P90(ms)"];
+function downloadCsv(sessions: typeof store.state.sessions): void {
+  const rows: string[] = ["会话时间,阶段,回合数,命中,无反应,命中率,P50(ms),P90(ms),数据来源,设备结果,设备用时(ms),初始距离(mm),结束距离(mm)"];
   for (const session of sessions) {
+    if(session.rangeResult){
+      const r=session.rangeResult;
+      rows.push([new Date(session.startedAt).toISOString(),4,1,'','','','','','ultrasonic-v1',r.outcome,r.outcome==='found'?r.sample?.elapsedMs:'',r.sample?.baselineMm??'',r.sample?.valid?r.sample.distanceMm:''].join(','));
+      continue;
+    }
     const trials = session.trials as Parameters<typeof hitRate>[0];
     const s = summarize(trials);
     const lat = latencyStats(trials);
@@ -113,6 +121,7 @@ function downloadCsv(sessions: { startedAt: number; stage: number; trials: unkno
         s.rate === null ? "" : (s.rate * 100).toFixed(1),
         lat.p50?.toFixed(0) ?? "",
         lat.p90?.toFixed(0) ?? "",
+        'screen','','','','',
       ].join(","),
     );
   }

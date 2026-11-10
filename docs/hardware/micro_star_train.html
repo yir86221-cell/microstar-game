@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>微动星瞳训练测试</title>
+</head>
+<body>
+  <h1>微动星瞳训练测试</h1>
+  <p>用 Chrome 打开本页。先连接，再确认颜色和亮度，试灯后再开始找。</p>
+  <p id="log">还没有连接。</p>
+
+  <p>
+    <button id="connect">连接设备</button>
+    <button id="off" disabled>关灯</button>
+  </p>
+
+  <p>
+    红 <input id="red" type="number" min="0" max="255" value="0" />
+    绿 <input id="green" type="number" min="0" max="255" value="0" />
+    蓝 <input id="blue" type="number" min="0" max="255" value="0" />
+    暖白 <input id="warm" type="number" min="0" max="255" value="255" />
+    亮度峰值 <input id="brightness" type="number" min="0" max="128" value="80" />
+    <button id="save" disabled>确认颜色</button>
+  </p>
+
+  <p>
+    <button id="warmPreset" disabled>暖白</button>
+    <button id="redPreset" disabled>红色</button>
+    <button id="blink" disabled>试灯闪烁</button>
+    <button id="steady" disabled>试灯恒亮</button>
+  </p>
+
+  <p>
+    <button id="start" disabled>开始找</button>
+    <button id="finish" disabled>结束训练</button>
+  </p>
+
+  <p id="range">距离：尚无数据</p>
+
+  <script>
+    // 这些编号必须和固件里的一致，不能改。
+    const SERVICE = "8a1f0001-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
+    const ALERT = "8a1f0002-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
+    const LIGHT = "8a1f0003-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
+    const MOTION = "8a1f0004-3c4d-4e5f-9a6b-7c8d9e0f1a2b";
+
+    const log = document.querySelector("#log");
+    const range = document.querySelector("#range");
+    const actions = ["off", "save", "warmPreset", "redPreset", "blink", "steady", "start", "finish"];
+
+    let alertChar = null;
+    let lightChar = null;
+
+    function say(text) {
+      log.textContent = text;
+    }
+
+    function setReady(ready) {
+      actions.forEach((id) => {
+        document.querySelector("#" + id).disabled = !ready;
+      });
+    }
+
+    function byteOf(id) {
+      const number = Number(document.querySelector("#" + id).value);
+      if (!Number.isFinite(number) || number < 0) {
+        return 0;
+      }
+      const limit = id === "brightness" ? 128 : 255;
+      if (number > limit) {
+        return limit;
+      }
+      return Math.round(number);
+    }
+
+    function fillColor(red, green, blue, warm) {
+      document.querySelector("#red").value = red;
+      document.querySelector("#green").value = green;
+      document.querySelector("#blue").value = blue;
+      document.querySelector("#warm").value = warm;
+    }
+
+    async function sendColor() {
+      const packet = new Uint8Array([
+        byteOf("red"),
+        byteOf("green"),
+        byteOf("blue"),
+        byteOf("warm"),
+        byteOf("brightness"),
+      ]);
+      await lightChar.writeValue(packet);
+      say("已写入颜色。训练开始后，这组数值会被锁定。");
+    }
+
+    async function sendAlert(value, text) {
+      await alertChar.writeValue(new Uint8Array([value]));
+      say(text);
+    }
+
+    function phaseName(phase) {
+      if (phase === 1) {
+        return "寻找中，灯恒亮";
+      }
+      if (phase === 2) {
+        return "已找到，灯呼吸";
+      }
+      return "调试中";
+    }
+
+    document.querySelector("#connect").onclick = async () => {
+      if (!navigator.bluetooth) {
+        say("当前浏览器不能用蓝牙。请用电脑上的 Chrome，并通过 http://localhost 打开本页。");
+        return;
+      }
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: "MicroStar" }, { services: [SERVICE] }],
+          optionalServices: [SERVICE],
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE);
+        alertChar = await service.getCharacteristic(ALERT);
+        lightChar = await service.getCharacteristic(LIGHT);
+        const motionChar = await service.getCharacteristic(MOTION);
+
+        await motionChar.startNotifications();
+        motionChar.addEventListener("characteristicvaluechanged", (event) => {
+          const value = event.target.value;
+          if (value.byteLength < 10) {
+            return;
+          }
+          const phase = value.getUint8(0);
+          const flags = value.getUint8(1);
+          const distanceMm = value.getUint16(2, true);
+          const baselineMm = value.getUint16(4, true);
+          const elapsedMs = value.getUint32(6, true);
+          const valid = (flags & 1) === 1;
+          const stable = (flags & 2) === 2;
+          range.textContent =
+            phaseName(phase) +
+            "。距离 " + (valid ? (distanceMm / 10).toFixed(1) : "无效") + " cm" +
+            "，初始 " + (baselineMm / 10).toFixed(1) + " cm" +
+            "，" + (stable ? "读数稳定" : "读数还在变") +
+            "，用时 " + (elapsedMs / 1000).toFixed(1) + " 秒";
+          if (phase === 2) {
+            say("已找到，用时 " + (elapsedMs / 1000).toFixed(1) + " 秒。");
+          }
+        });
+
+        setReady(true);
+        say("已连接 MicroStar。先确认颜色，再试灯。");
+      } catch (error) {
+        say("连接失败：" + error.message);
+      }
+    };
+
+    document.querySelector("#save").onclick = () => sendColor();
+    document.querySelector("#warmPreset").onclick = async () => {
+      fillColor(0, 0, 0, 255);
+      await sendColor();
+    };
+    document.querySelector("#redPreset").onclick = async () => {
+      fillColor(255, 0, 0, 0);
+      await sendColor();
+    };
+    document.querySelector("#blink").onclick = () => sendAlert(0x01, "试灯闪烁。");
+    document.querySelector("#steady").onclick = () => sendAlert(0x02, "试灯恒亮。");
+    document.querySelector("#off").onclick = () => sendAlert(0x00, "已关灯。若正在训练，训练也已结束。");
+    document.querySelector("#start").onclick = () => sendAlert(0x10, "已发送开始找。灯应变为恒亮。");
+    document.querySelector("#finish").onclick = () => sendAlert(0x11, "训练已结束，可以重新确认颜色。");
+  </script>
+</body>
+</html>

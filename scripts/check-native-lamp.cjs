@@ -4,7 +4,7 @@ const path = require('node:path');
 async function main() {
   const { createNativeLampBridge } = await import('../native/lamp-bridge-core.mjs');
   const uuid = n => `8a1f000${n}-3c4d-4e5f-9a6b-7c8d9e0f1a2b`;
-  const protocol = { SERVICE_UUID:uuid(1),ALERT_UUID:uuid(2),LIGHT_UUID:uuid(3),STATUS_UUID:uuid(5),DEVICE_NAME:'MicroStar' };
+  const protocol = { SERVICE_UUID:uuid(1),ALERT_UUID:uuid(2),LIGHT_UUID:uuid(3),MOTION_UUID:uuid(4),STATUS_UUID:uuid(5),DEVICE_NAME:'MicroStar' };
   const calls=[];
   let disconnected;
   const client={
@@ -27,7 +27,7 @@ async function main() {
   await bridge.stopActive();assert.equal(events,0,'permission/selection pause cannot cancel a new connection');
   await c.writeLight(new Uint8Array([0,0,0,255,80]));await c.writeAlert(1);
   assert.deepEqual(calls.slice(-2),[['write',uuid(1),uuid(3),[0,0,0,255,80]],['write',uuid(1),uuid(2),[1]]]);
-  await assert.rejects(c.writeAlert(2));await assert.rejects(c.writeLight([0,0,0,255,255]));
+  await c.writeAlert(2);await c.writeAlert(0x10);await c.writeAlert(0x11);await c.writeAlert(0x10);await assert.rejects(c.writeAlert(3));await assert.rejects(c.writeLight([0,0,0,255,255]));
   await assert.rejects(bridge.connect(()=>{}),/连接正在使用/);
   await bridge.stopActive();assert.equal(events,1);assert.deepEqual(calls.at(-2),['write',uuid(1),uuid(2),[0]]);
   await assert.rejects(c.writeAlert(1),/断开/);
@@ -55,6 +55,25 @@ async function main() {
   await retry.writeAlert(1);
   await retry.disconnect();
   assert.equal(intentionalEvents, 0, 'intentional cleanup must not mask an error with generic disconnect');
+  let rangeCallback, stoppedNotifications=0, releaseWrite;
+  const ranges=[];
+  const rangeBridge=createNativeLampBridge({...client,
+    async startNotifications(id,service,char,cb){assert.equal(char,uuid(4));rangeCallback=cb;},
+    async stopNotifications(){stoppedNotifications++;},
+    async read(){return new DataView(Uint8Array.from([99,0,3,240,0,200,0,0,0,0,0,99]).buffer,1,10);},
+    async write(id,service,char,data){
+      const command=data.getUint8(0);calls.push(['range-write',command]);
+      if(command===16)await new Promise(resolve=>{releaseWrite=resolve;});
+    },
+  },protocol);
+  const rc=await rangeBridge.connect(()=>{});await rc.subscribeRange(data=>ranges.push(data));
+  assert.deepEqual(ranges[0],[0,3,240,0,200,0,0,0,0,0]);
+  const starting=rc.writeAlert(16);for(let i=0;i<5;i++)await Promise.resolve();
+  const background=rangeBridge.stopActive();for(let i=0;i<5;i++)await Promise.resolve();
+  assert.deepEqual(calls.at(-1),['range-write',16],'stop must wait for pending start write');
+  releaseWrite();await starting;await background;
+  assert.deepEqual(calls.at(-2),['range-write',0]);
+  rangeCallback(new DataView(new ArrayBuffer(10)));assert.equal(ranges.length,1,'late native notifications ignored');
   // Assert native wiring, not just the fake client: root script, plugin and permissions.
   const root=path.resolve(__dirname,'..');
   assert.match(fs.readFileSync(path.join(root,'dist/index.html'),'utf8'),/src="native-lamp.js"/);

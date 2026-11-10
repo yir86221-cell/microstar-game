@@ -1,4 +1,5 @@
 import type { LightPresetName } from "@microstar/core-protocol";
+import type { RangeResult } from './range-lamp.js';
 import { DEFAULT_LOOP, type LoopParameters, type TrialRecord } from "@microstar/core-domain";
 import { customLevelsAsLevels } from "./customLevels.js";
 import { clearGameRecords, readGameRecords, type GameRecord } from "./gameBridge.js";
@@ -84,6 +85,8 @@ export const defaultMode = (hand: HandFunction): AccessMode => {
 };
 
 export interface SessionRecord {
+  /** Ultrasonic results are separate from touchscreen response metrics. */
+  rangeResult?: RangeResult;
   id: string;
   startedAt: number;
   endedAt: number;

@@ -1398,3 +1398,10 @@ html.embedded #tabbar {
 .cutout-canvas,.cutout-preview{display:block;width:100%;height:300px;object-fit:contain;background:#000;border-radius:12px}
 .cutout-canvas{touch-action:none;cursor:crosshair}.cutout-editor [hidden]{display:none}
 @media(max-width:600px){.cutout-panes{grid-template-columns:1fr}.cutout-canvas{height:320px}.cutout-preview{height:240px}}
+:root { --range-gap: 10px; }
+.range-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--range-gap); margin: 12px 0; }
+.range-colors { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; margin-bottom: 16px; }
+.range-colors .btn { padding: 12px 4px; min-width: 0; }
+.range-colors .btn.active { background: var(--accent); color: var(--accent-ink); }
+.range-panel .card { margin-bottom: 16px; }
+.range-panel .btn:disabled { opacity: .45; }

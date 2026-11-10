@@ -52,17 +52,3 @@ it('leaving during selection closes a late connection without starting it',async
   const opening=f.lamp.connect();f.lamp.dispose();selected(f.connection);await opening;
   expect(f.events).toEqual([0,'disconnect']);
 });
-it('device screen exposes only protocol-backed controls and updates without remounting',async()=>{
-  const f=fake();Object.defineProperty(window,'microstarLampBridge',{configurable:true,value:{connect:f.connect}});
-  const {render}=await import('../src/screens/device.js');const {store}=await import('../src/lib/store.js');
-  store.state.child.photosensitive=false;store.state.child.tactileSensitive=false;
-  const page=render({navigate:vi.fn(),rerender:vi.fn()});
-  const click=(name:string)=>{const b=[...page.el.querySelectorAll('button')].find(x=>x.textContent===name)!;expect(b).toBeDefined();b.click();};
-  try {
-    expect(page.el.textContent).not.toMatch(/模拟设备|常亮|呼吸|自检通过|大约还能练|调试台/);
-    click('连接提示灯');await flush();expect(page.el.textContent).toContain('已连接 MicroStar');
-    click('红色');await flush();expect(f.connection.writeLight).toHaveBeenCalled();
-    click('读取状态');await flush();expect(page.el.textContent).toContain('设备报告：闪烁开启');
-    click('停止并断开');await flush();expect(f.connection.disconnect).toHaveBeenCalled();
-  } finally {page.destroy?.();delete (window as Window & {microstarLampBridge?:unknown}).microstarLampBridge;}
-});

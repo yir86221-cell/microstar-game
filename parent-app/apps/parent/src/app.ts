@@ -11,8 +11,11 @@ import { render as records } from "./screens/records.js";
 import { render as child } from "./screens/child.js";
 import { render as extract } from "./screens/extract.js";
 
+import { render as physical } from "./screens/physical.js";
+
 const SCREENS: Record<string, ScreenRenderer> = {
   train,
+  physical,
   data,
   device: deviceScreen,
   profile,
@@ -41,7 +44,7 @@ const FULL_SCREEN = new Set(["child", "plan", "records", "extract"]);
  * 其余全屏页（计划、记录、调试）是纯展示，状态变了就该重绘——
  * 之前把它们也放进这个集合，导致「回应方式」点了没反应。
  */
-const SELF_MANAGED = new Set(["child", "device", "extract"]);
+const SELF_MANAGED = new Set(["child", "device", "extract", "physical"]);
 
 let view: HTMLElement;
 let tabbar: HTMLElement;
