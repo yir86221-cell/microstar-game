@@ -430,7 +430,7 @@ describe("训练页的排布", () => {
     expect(start).toBeLessThan(list);
   });
 
-  it("第三阶段的「拍照制作关卡」也在关卡列表上方", async () => {
+  it("第三阶段的「拍照制作关卡」在关卡列表下方", async () => {
     const root = await mountAt("#/train");
     const { store } = await import("../src/lib/store.js");
     store.update((s) => {
@@ -444,7 +444,8 @@ describe("训练页的排布", () => {
     const list = html.indexOf("level-list");
     expect(make).toBeGreaterThan(-1);
     expect(list).toBeGreaterThan(-1);
-    expect(make).toBeLessThan(list);
+    // 拍照是「加内容」，放最下面；开始训练才在上面
+    expect(make).toBeGreaterThan(list);
   });
 
   it("第三阶段把家长自制的关卡排在内置关卡前面", async () => {

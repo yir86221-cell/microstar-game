@@ -135,15 +135,19 @@ export const render: ScreenRenderer = (ctx) => {
     physicalButton,
     startButton,
     !!level && h("button", { class: "link-btn", onClick: () => ctx.navigate(isPhysical ? "device" : "plan") }, isPhysical ? "设置灯光与读取设备状态 ›" : "调整参数 ›"),
-    plan.stage === 3
-      ? h(
+  );
+
+  // 拍照做关卡是「加内容」，不是「开始今天的训练」，所以放在关卡列表下面
+  const extractCard = plan.stage === 3
+    ? card(
+        h(
           "button",
           { class: "btn primary block lg", onClick: () => ctx.navigate("extract") },
           "拍照制作关卡",
-        )
-      : null,
-    plan.stage === 3 ? h("p", { class: "hint" }, "拍照或从相册选图，保存后可在这里和儿童端第三阶段训练。照片只保存在本机。") : null,
-  );
+        ),
+        h("p", { class: "hint" }, "拍照或从相册选图，保存后可在这里和儿童端第三阶段训练。照片只保存在本机。"),
+      )
+    : null;
 
   // 今天的状态
   const status = h(
@@ -173,6 +177,8 @@ export const render: ScreenRenderer = (ctx) => {
       // 计划和「开始训练」放在关卡列表上面：关卡多了也不用滑到底才能开始
       planCard,
       levelList,
+      // 「拍照制作关卡」是加内容，放最下面
+      extractCard,
     ),
     destroy: () => manualLamp?.destroy(),
   };
