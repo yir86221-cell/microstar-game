@@ -308,7 +308,7 @@ window.addEventListener('message',e=>{
  const phase=Math.max(1,Math.min(3,Math.floor(Number(d.phase))||1));
  const list=phase===1?stageOne:phase===2?[...levels,pigLevel,...storyLevels]:[...customLevels(),...builtinPhotos];
  const byId=phase===3&&typeof d.levelId==='string'?list.findIndex(l=>l.id===d.levelId):-1;
- if(phase===3&&typeof d.levelId==='string'&&byId<0)return;
+ if(phase===3&&typeof d.levelId==='string'&&byId<0){tell('这个关卡找不到，请刷新页面后重试');try{e.source?.postMessage({type:'microstar:level-missing',levelId:d.levelId},location.origin);}catch(_){}return;}
  const index=byId>=0?byId:Math.max(0,Math.min(list.length-1,Math.floor(Number(d.index))||0));
  const mode=['slap','precise','dwell'].includes(d.mode)?d.mode:'slap';
  const t=Number(d.timeoutMs);if(isFinite(t))ROUND_TIMEOUT_MS=Math.max(10000,Math.min(90000,t));

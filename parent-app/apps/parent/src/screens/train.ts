@@ -2,6 +2,7 @@ import { summarize } from "@microstar/core-domain";
 import { card, h } from "../lib/dom.js";
 import { pct, secs } from "../lib/format.js";
 import { manualLampButton } from "../lib/manual-lamp-button.js";
+import { showNotice } from "../lib/notice.js";
 import { readCustomLevels } from "../lib/customLevels.js";
 import {
   MODE_HINT,
@@ -211,6 +212,23 @@ function startTraining(ctx: { navigate: (p: string) => void }): void {
   const list = levelsOf(plan.stage as 1 | 2 | 3);
   const index = Math.max(0, list.findIndex((l) => l.id === plan.levelId));
 
+  // 儿童端没接住时（比如它还没更新），800ms 后仍然留在弹窗里，就退回内置训练场
+  const fallback = window.setTimeout(() => {
+    window.removeEventListener("message", onMissing);
+    if (document.body.isConnected) ctx.navigate("child");
+  }, 800);
+
+  // 儿童端找不到这一关时会回一条消息。没有这条兜底的话，
+  // 家长看到的就是「弹窗关了，儿童端什么都没发生」——只能反复点。
+  const onMissing = (e: MessageEvent): void => {
+    if (e.origin !== location.origin) return;
+    if ((e.data as { type?: string } | null)?.type !== "microstar:level-missing") return;
+    window.removeEventListener("message", onMissing);
+    window.clearTimeout(fallback);
+    showNotice("儿童端里没有这一关，请刷新页面后重试。");
+  };
+  window.addEventListener("message", onMissing);
+
   window.parent.postMessage(
     {
       type: "microstar:start-level",
@@ -225,9 +243,4 @@ function startTraining(ctx: { navigate: (p: string) => void }): void {
     },
     location.origin,
   );
-
-  // 儿童端没接住时（比如它还没更新），800ms 后仍然留在弹窗里，就退回内置训练场
-  window.setTimeout(() => {
-    if (document.body.isConnected) ctx.navigate("child");
-  }, 800);
 }

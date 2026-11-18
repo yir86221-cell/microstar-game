@@ -185,3 +185,13 @@ wins.message({origin:'https://example.test',source,data:{type:'microstar:start-l
 assert.equal(run("JSON.parse(localStorage.getItem('microstar.game.sessions')).filter(r=>r.phase===3).every(r=>r.levelId==='custom-first')"),true);
 run("openParent();localStorage.setItem('microstar.custom-levels.v1','[]');closeParent()");assert.equal(run('S.page'),'phases','deleting the level you were on returns to the phase list instead of crashing');
 console.log('PASS: built-in + custom photos in P3, stable IDs, shared images, three input modes, pause, progression, records and deletion.');
+// 找不到关卡时必须有反馈：以前是直接 return，家长只看到「弹窗关了、什么都没发生」
+run("S.phase=3;S.page='game';S.toast=''");
+wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,levelId:'custom-gone',index:0}});
+assert.equal(run('S.page'),'game','missing level must not silently change page');
+assert.match(String(run('S.toast')),/找不到/, 'missing level must tell the user');
+assert.equal(run('S.level'),1,'missing level must not start anything');
+run("S.toast=''");
+console.log('PASS: a missing level id reports instead of failing silently.');
+
+
