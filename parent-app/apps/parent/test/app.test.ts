@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hitRate } from "@microstar/core-domain";
 
@@ -355,5 +355,65 @@ describe("已拍的实物", () => {
     expect(root.textContent).not.toContain("我的水杯");
     expect(store.state.plan.levelId).not.toBe(level.id);
     expect(store.state.plan.levelId).toBe("");
+  });
+});
+
+describe("手动控灯与自动连接的互斥", () => {
+  it("手动控灯占着灯时，设备页点连接会被拒绝并说明原因", async () => {
+    vi.resetModules();
+    resetStorage();
+    document.body.innerHTML = '<div id="root"></div>';
+
+    const lamp = await import("../src/lib/manual-lamp.js");
+    lamp.lampOccupancy.manual = true;
+
+    window.location.hash = "#/device";
+    const mod = await import("../src/app.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
+    const connect = [...root.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("连接提示灯"),
+    ) as HTMLButtonElement | undefined;
+    expect(connect).toBeDefined();
+    connect!.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(root.textContent).toContain("手动控灯正在进行");
+
+    lamp.lampOccupancy.manual = false;
+  });
+
+  it("自动训练连着灯时，手动控灯要提示先在设备页断开", async () => {
+    vi.resetModules();
+    resetStorage();
+    document.body.innerHTML = '<div id="root"></div>';
+
+    const lamp = await import("../src/lib/manual-lamp.js");
+    lamp.lampOccupancy.training = true;
+
+    window.location.hash = "#/train";
+    const mod = await import("../src/app.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
+    // 切到「实物」阶段才会出现手动控灯按钮
+        // 注意：第三阶段改名叫「实物照片」，只按「实物」找会先命中它，
+    // 所以要挑同时含「实物」和「家长」的那个标签
+    const tab = [...root.querySelectorAll("button")].find(
+      (b) => b.textContent?.includes("实物") && b.textContent?.includes("家长"),
+    );
+    expect(tab).toBeDefined();
+    tab!.click();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const btn = root.querySelector<HTMLButtonElement>('[data-manual-lamp="true"]');
+    expect(btn).not.toBeNull();
+    btn!.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(root.textContent).toContain("请先在设备页停止并断开");
+
+    lamp.lampOccupancy.training = false;
   });
 });
