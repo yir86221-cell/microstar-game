@@ -2,6 +2,7 @@ import { AlertMode } from "@microstar/core-protocol";
 import { summarize, TrialRunner } from "@microstar/core-domain";
 import { h } from "../lib/dom.js";
 import { device } from "../lib/device.js";
+import { lampOccupancy } from "../lib/manual-lamp.js";
 import { pct, secs } from "../lib/format.js";
 import { PHYSICAL_LEVEL, store, type SessionRecord } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
@@ -209,6 +210,16 @@ export const render: ScreenRenderer = (ctx) => {
   }
 
   async function boot(): Promise<void> {
+    // 手动控灯正占着灯：再连一次会把那条连接挤掉，两边状态都会乱
+    if (lampOccupancy.manual) {
+      titleEl.textContent = "提示灯正在被手动控制";
+      subEl.textContent = "回到训练页点「蓝牙控灯：停止闪烁」，再开始实物训练。";
+      actionRow.replaceChildren(
+        h("button", { class: "btn ghost grow", onClick: () => ctx.navigate("train") }, "返回训练"),
+      );
+      return;
+    }
+
     if (!device.isConnected) {
       await device.connect();
     }
