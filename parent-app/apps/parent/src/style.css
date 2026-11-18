@@ -1386,3 +1386,22 @@ html.embedded #tabbar {
   object-fit: contain;
   background: #0a0a0c;
 }
+
+.photo-level-preview{display:block;width:100%;height:min(45vh,360px);object-fit:contain;background:#000;border-radius:16px}
+.photo-library-item{display:grid;gap:12px;padding:16px 0;border-bottom:1px solid #333}
+.photo-library-item .row{flex-wrap:wrap}
+.photo-target{border-radius:12px!important;overflow:hidden}
+.photo-target img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+
+.cutout-tools{display:flex;flex-wrap:wrap;gap:8px}.cutout-tools [aria-pressed=true]{background:#a8d5c8;color:#10201b}
+.cutout-panes{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0}.cutout-panes>div{min-width:0}
+.cutout-canvas,.cutout-preview{display:block;width:100%;height:300px;object-fit:contain;background:#000;border-radius:12px}
+.cutout-canvas{touch-action:none;cursor:crosshair}.cutout-editor [hidden]{display:none}
+@media(max-width:600px){.cutout-panes{grid-template-columns:1fr}.cutout-canvas{height:320px}.cutout-preview{height:240px}}
+:root { --range-gap: 10px; }
+.range-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--range-gap); margin: 12px 0; }
+.range-colors { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; margin-bottom: 16px; }
+.range-colors .btn { padding: 12px 4px; min-width: 0; }
+.range-colors .btn.active { background: var(--accent); color: var(--accent-ink); }
+.range-panel .card { margin-bottom: 16px; }
+.range-panel .btn:disabled { opacity: .45; }

@@ -158,16 +158,13 @@ describe("家长端页面", () => {
     expect(root.querySelector<HTMLElement>("#tabbar")?.style.display).toBe("none");
   });
 
-  it("实物训练台：标题正确", async () => {
-    const root = await mountAt("#/physical");
-    expect(root.textContent).toContain("实物训练");
-    expect(root.textContent).not.toContain("看到了");
-  });
-
-  it("调试台：能挂载并显示字节区", async () => {
-    const root = await mountAt("#/debug");
-    expect(root.textContent).toContain("最近下发的字节");
-    expect(root.textContent).toContain("ALERT");
+  it("removed physical/debug routes cannot launch simulation", async () => {
+    for (const route of ["#/physical", "#/debug"]) {
+      const root=await mountAt(route);
+      expect(root.textContent).toContain(route==="#/physical"?"开始找":"开始训练");
+      expect(root.textContent).not.toContain("最近下发的字节");
+      expect(root.textContent).not.toContain("模拟拿起");
+    }
   });
 
   it("儿童端写下的成绩会被家长端读进来", async () => {
@@ -228,8 +225,8 @@ describe("家长端页面", () => {
     root.querySelectorAll<HTMLButtonElement>("#tabbar .tab")[2]!.click();
     await new Promise((resolve) => setTimeout(resolve, 30));
 
-    const blink = [...root.querySelectorAll<HTMLButtonElement>(".seg")].find(
-      (button) => button.textContent === "闪烁",
+    const blink = [...root.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "试灯闪烁",
     );
     expect(blink).toBeDefined();
     expect(blink?.disabled).toBe(true);
@@ -314,7 +311,7 @@ describe("计划页与档案页", () => {
 });
 
 describe("已拍的实物", () => {
-  it("能改名和删除；删掉当前选中的关卡会退回内置关", async () => {
+  it("删除最后一张照片后保留空选择，不退回卡通关卡", async () => {
     vi.resetModules();
     resetStorage();
 
@@ -357,6 +354,6 @@ describe("已拍的实物", () => {
     // 关卡没了，而且计划不能停在一个已经不存在的关卡上
     expect(root.textContent).not.toContain("我的水杯");
     expect(store.state.plan.levelId).not.toBe(level.id);
-    expect(store.state.plan.levelId).toBeTruthy();
+    expect(store.state.plan.levelId).toBe("");
   });
 });

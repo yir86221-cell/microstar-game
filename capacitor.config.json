@@ -1,0 +1,24 @@
+{
+  "appId": "cn.microstar.game.demo",
+  "appName": "微动星瞳",
+  "webDir": "dist",
+  "backgroundColor": "#000000",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable",
+      "style": "DARK"
+    },
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "正在搜索 MicroStar…",
+        "cancel": "取消",
+        "availableDevices": "选择 MicroStar 提示灯",
+        "noDeviceFound": "未找到设备，请确认灯已开启并靠近"
+      }
+    }
+  }
+}

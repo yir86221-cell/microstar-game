@@ -1,4 +1,5 @@
 import { TrialRunner } from "@microstar/core-domain";
+import { readCustomLevels } from "../lib/customLevels.js";
 import { h } from "../lib/dom.js";
 import { levelById, store, type SessionRecord } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
@@ -16,6 +17,9 @@ const DWELL_MS = 1_200;
 export const render: ScreenRenderer = (ctx) => {
   const plan = store.state.plan;
   const level = levelById(plan.levelId) ?? null;
+  const photo = plan.stage === 3 ? readCustomLevels().find(p => p.id === plan.levelId) : null;
+  if (plan.stage === 3 && !photo) return { el: h("div", { class: "screen" }, h("p", null, "请先制作或选择实物照片关卡。"),
+    h("button", { class: "btn primary", onClick: () => ctx.navigate("train") }, "返回训练")) };
   const runner = new TrialRunner({ judgeWindowMs: plan.judgeWindowMs });
   const startedAt = Date.now();
   const bias = store.state.child.fieldBias;
@@ -37,6 +41,7 @@ export const render: ScreenRenderer = (ctx) => {
   };
 
   const target = h("div", { class: "child-target" });
+  if (photo) { target.classList.add("photo-target"); target.append(h("img", { src: photo.image, alt: photo.name })); }
   const progress = h("div", { class: "child-progress" });
 
   // ---- 判定
@@ -47,7 +52,7 @@ export const render: ScreenRenderer = (ctx) => {
     const cy = r.top + r.height / 2;
     const dist = Math.hypot(x - cx, y - cy);
     const radius = Math.max(r.width, r.height) / 2;
-    return { inside: dist <= radius, ratio: dist / radius };
+    return { inside: photo ? x >= r.left && x <= r.right && y >= r.top && y <= r.bottom : dist <= radius, ratio: dist / radius };
   }
 
   function commitHit(ratio: number): void {
@@ -142,7 +147,7 @@ export const render: ScreenRenderer = (ctx) => {
   );
 
   function showTarget(): void {
-    target.style.background = level?.color ?? "#ffe600";
+    target.style.background = photo ? "#000" : level?.color ?? "#ffe600";
     target.dataset.position = bias;
     target.classList.add("visible");
     progress.textContent = `${round + 1} / ${plan.maxRounds}`;

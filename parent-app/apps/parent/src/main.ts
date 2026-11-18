@@ -21,7 +21,20 @@ mount(root);
  *
  * 只在 HTTPS 或 localhost 下注册（浏览器硬性要求），所以局域网 http 打开时会静默跳过。
  */
-if ("serviceWorker" in navigator && window.isSecureContext) {
+// APK updates replace bundled assets. A browser service worker must not keep an
+// older parent UI alive across an app update. The iframe can inspect its same-origin host.
+function inNativeApp(): boolean {
+  try {
+    const host = window.top as Window & {
+      Capacitor?: { isNativePlatform?: () => boolean };
+    };
+    return host?.Capacitor?.isNativePlatform?.() === true;
+  } catch {
+    return false;
+  }
+}
+
+if (!inNativeApp() && "serviceWorker" in navigator && window.isSecureContext) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
       /* 注册失败不影响使用，只是不能安装成应用 */

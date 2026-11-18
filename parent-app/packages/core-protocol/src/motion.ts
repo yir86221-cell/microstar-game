@@ -38,7 +38,7 @@ const toBytes = (data: ArrayBuffer | ArrayBufferView | DataView): Uint8Array => 
 
 export function decodeMotion(data: ArrayBuffer | ArrayBufferView | DataView): MotionSample {
   const bytes = toBytes(data);
-  if (bytes.length < MOTION_PAYLOAD_LENGTH) {
+  if (bytes.length !== MOTION_PAYLOAD_LENGTH) {
     throw new Error(
       `MOTION 需要 7 字节，收到 ${bytes.length}`,
     );

@@ -1,5 +1,5 @@
 /** 判定来源。每个阶段只有一种，不存在人工补录。 */
-export type Judge = "touch" | "motion";
+export type Judge = "touch" | "motion" | "range";
 
 /**
  * 一个回合的结局。

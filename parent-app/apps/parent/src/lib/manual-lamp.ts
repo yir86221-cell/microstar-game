@@ -1,17 +1,18 @@
-import { ALERT_UUID, LIGHT_UUID, SERVICE_UUID, DEVICE_NAME, LIGHT_PRESETS, encodeLight, type LightPresetName } from "@microstar/core-protocol";
+import { ALERT_UUID, LIGHT_UUID, MOTION_UUID, STATUS_UUID, SERVICE_UUID, DEVICE_NAME, LIGHT_PRESETS, encodeLight, type LightPresetName, type TrainingCommand } from "@microstar/core-protocol";
 
-// This manual control follows micro_star_client.js / micro_star_parent.html:
-// LIGHT is RGBWW + brightness; ALERT accepts only 01 (blink) / 00 (stop).
-// It intentionally does not subscribe to MOTION or create training records.
+// Shared desktop/native transport. RangeLamp owns the current training flow.
+// The legacy ManualLamp controller below is retained for older call sites only.
 export interface LampConnection {
   writeLight(bytes: Uint8Array): Promise<void>;
-  writeAlert(value: 0 | 1): Promise<void>;
+  writeAlert(value: TrainingCommand): Promise<void>;
+  subscribeRange?(listener: (bytes: number[]) => void): Promise<() => Promise<void>>;
   disconnect(): Promise<void>;
+  readStatus?(): Promise<number[]>;
 }
 export interface LampBridge {
-  connect(onDisconnect: () => void, owner?: Window): Promise<LampConnection>;
+  connect(onDisconnect: () => void, owner?: Window, onProgress?: (message: string) => void): Promise<LampConnection>;
 }
-interface Characteristic { writeValue(bytes: Uint8Array): Promise<void> }
+interface Characteristic extends EventTarget { value?: DataView; writeValue(bytes: Uint8Array): Promise<void>; readValue(): Promise<DataView>; startNotifications(): Promise<unknown>; stopNotifications(): Promise<unknown> }
 interface LampDevice extends EventTarget {
   gatt?: {
     connected: boolean;
@@ -22,10 +23,10 @@ interface LampDevice extends EventTarget {
 interface BluetoothApi {
   requestDevice(options: { filters: unknown[]; optionalServices: string[] }): Promise<LampDevice>;
 }
-export async function connectLamp(onDisconnect: () => void): Promise<LampConnection> {
+export async function connectLamp(onDisconnect: () => void, _owner?: Window, onProgress?: (message: string) => void): Promise<LampConnection> {
   let host: (Window & { microstarLampBridge?: LampBridge; Capacitor?: { isNativePlatform?(): boolean } }) | null = null;
   try { host = window.top; } catch { /* Standalone web fallback. */ }
-  if (host?.microstarLampBridge) return host.microstarLampBridge.connect(onDisconnect, window);
+  if (host?.microstarLampBridge) return host.microstarLampBridge.connect(onDisconnect, window, onProgress);
   if (host?.Capacitor?.isNativePlatform?.()) throw Error("此安装包缺少蓝牙模块，请安装新版 App。");
   const bluetooth = (navigator as unknown as { bluetooth?: BluetoothApi }).bluetooth;
   if (!bluetooth || window.isSecureContext === false) {
@@ -36,22 +37,45 @@ export async function connectLamp(onDisconnect: () => void): Promise<LampConnect
   });
   const gatt = selected.gatt;
   if (!gatt) throw Error("设备未提供蓝牙 GATT 服务。");
-  selected.addEventListener("gattserverdisconnected", onDisconnect);
+  let established = false;
+  const disconnected = () => { if (established) onDisconnect(); };
+  selected.addEventListener("gattserverdisconnected", disconnected);
   try {
+    onProgress?.("已选中 MicroStar，正在建立蓝牙连接…");
     const server = await gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
     const alert = await service.getCharacteristic(ALERT_UUID);
     const light = await service.getCharacteristic(LIGHT_UUID);
+    let unsubscribe: (() => Promise<void>) | undefined;
+    established = true;
     return {
       writeLight: bytes => light.writeValue(bytes),
-      writeAlert: value => alert.writeValue(new Uint8Array([value])),
+      writeAlert: value => {
+        if (![0,1,2,16,17].includes(value)) return Promise.reject(Error('不支持的训练指令。'));
+        return alert.writeValue(new Uint8Array([value]));
+      },
+      async subscribeRange(listener) {
+        const range = await service.getCharacteristic(MOTION_UUID);
+        const emit = (value: DataView) => listener(Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength)));
+        const changed = () => { if (range.value) emit(range.value); };
+        range.addEventListener('characteristicvaluechanged', changed);
+        unsubscribe = async () => { range.removeEventListener('characteristicvaluechanged', changed); await range.stopNotifications(); };
+        try { await range.startNotifications(); emit(await range.readValue()); }
+        catch (error) { await unsubscribe().catch(() => {}); throw error; }
+        return unsubscribe;
+      },
+      async readStatus() {
+        const status = await service.getCharacteristic(STATUS_UUID);
+        const data = await status.readValue();
+        return Array.from(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+      },
       async disconnect() {
-        selected.removeEventListener("gattserverdisconnected", onDisconnect);
-        gatt.disconnect();
+        selected.removeEventListener("gattserverdisconnected", disconnected);
+        try { await unsubscribe?.(); } finally { gatt.disconnect(); }
       },
     };
   } catch (error) {
-    selected.removeEventListener("gattserverdisconnected", onDisconnect);
+    selected.removeEventListener("gattserverdisconnected", disconnected);
     gatt.disconnect();
     throw error;
   }
@@ -66,6 +90,15 @@ export interface LampSettings {
 }
 export interface LampState { busy: boolean; active: boolean; message: string }
 
+/**
+ * 手动控灯占用标记。
+ *
+ * 手动控灯走的是独立的一条连接，不经过 `device` 单例。
+ * 如果设备页和实物训练台不知道它在用灯，就会再连一次，
+ * 后连的把先连的挤掉（ESP32 只接受一个连接），两边状态都会乱。
+ */
+export const lampOccupancy = { manual: false };
+
 /** One manual session, independent of the existing automatic training loop. */
 export class ManualLamp {
   state: LampState = { busy: false, active: false, message: "首次点击选择 MicroStar；使用当前计划的颜色和亮度。" };
@@ -77,6 +110,7 @@ export class ManualLamp {
 
   private update(state: LampState): void {
     this.state = state;
+    lampOccupancy.manual = state.busy || state.active;
     if (!this.disposed) this.notify(state);
   }
   private send(task: () => Promise<void>): Promise<void> {
@@ -107,6 +141,10 @@ export class ManualLamp {
         if (generation !== this.generation) return;
         this.generation++; this.connection = null;
         this.update({ busy: false, active: false, message: "设备已断开，点按钮可重新连接。" });
+      }, undefined, message => {
+        if (generation === this.generation && !this.disposed) {
+          this.update({ busy: true, active: false, message });
+        }
       });
       if (generation !== this.generation || this.disposed) { await this.close(connection); return; }
       this.connection = connection;
@@ -114,8 +152,10 @@ export class ManualLamp {
       const light = encodeLight({ ...LIGHT_PRESETS[settings.preset],
         brightness: Math.min(brightness, settings.highLightSensitivity ? 96 : 128) });
       const ready = connection;
+      this.update({ busy: true, active: false, message: "蓝牙已连接，正在发送颜色与亮度…" });
       await this.send(() => ready.writeLight(light));
       if (generation !== this.generation) return;
+      this.update({ busy: true, active: false, message: "颜色已发送，正在发送闪灯指令…" });
       await this.send(() => ready.writeAlert(1));
       if (generation !== this.generation) return;
       this.update({ busy: false, active: true, message: "已发送闪灯指令；再次点击停止并断开。" });
@@ -139,5 +179,10 @@ export class ManualLamp {
       this.update({ busy: false, active: false, message: `停止未确认，请检查灯：${error instanceof Error ? error.message : String(error)}` });
     }
   }
-  dispose(): void { this.disposed = true; void this.stop(); }
+  dispose(): void { this.disposed = true; cancelLampSelection(); void this.stop(); }
+}
+
+export function cancelLampSelection(): void {
+  try { (window.top as Window & {microstarLampSelector?: {cancel(): boolean}})?.microstarLampSelector?.cancel(); }
+  catch { /* A browser's system chooser cannot be cancelled programmatically. */ }
 }
