@@ -1,6 +1,6 @@
 import { h } from "./dom.js";
 import { store } from "./store.js";
-import { ManualLamp } from "./manual-lamp.js";
+import { ManualLamp, lampOccupancy } from "./manual-lamp.js";
 
 export function manualLampButton(onOccupied: (occupied: boolean) => void = () => {}) {
   const status = h("p", { class: "hint", role: "status", "aria-live": "polite" });
@@ -16,6 +16,11 @@ export function manualLampButton(onOccupied: (occupied: boolean) => void = () =>
   button.setAttribute("aria-pressed", "false");
   status.textContent = lamp.state.message;
   button.addEventListener("click", () => {
+    // 自动训练已经连着灯时不要再开第二条连接，否则会把那条挤掉
+    if (!lamp.state.active && lampOccupancy.training) {
+      status.textContent = "设备已连接自动训练，请先在设备页停止并断开，再使用手动控灯。";
+      return;
+    }
     const { plan, child } = store.state;
     void lamp.toggle({ preset: plan.preset, brightness: plan.brightness,
       photosensitive: child.photosensitive, highLightSensitivity: child.highLightSensitivity,

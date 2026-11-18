@@ -2,7 +2,7 @@ import { card, cardTitle, h } from './dom.js';
 import { RangeLamp } from './range-lamp.js';
 import { saveRangeResult } from './range-record.js';
 import { store } from './store.js';
-import type { LampSettings } from './manual-lamp.js';
+import { lampOccupancy, type LampSettings } from './manual-lamp.js';
 
 export function rangePanel(training:boolean) {
   const plan=store.state.plan;
@@ -22,7 +22,14 @@ export function rangePanel(training:boolean) {
     const b=h('button',{type:'button',class:cls,onClick:action},label) as HTMLButtonElement;
     buttons.push(b);return b;
   }
-  const connect=button('连接提示灯',()=>void lamp.connect(),'btn primary');
+  const connect=button('连接提示灯',()=>{
+    // 手动控灯正占着灯：再连一次会把那条挤掉
+    if(lampOccupancy.manual){
+      message.textContent='手动控灯正在进行，请先在训练页停止闪烁，再连接设备。';
+      return;
+    }
+    void lamp.connect();
+  },'btn primary');
   const disconnect=button('停止并断开',()=>void lamp.disconnect());
   const start=button('开始找',()=>void lamp.start(settings()),'btn primary block lg');
   const end=button('结束训练',()=>void lamp.end());

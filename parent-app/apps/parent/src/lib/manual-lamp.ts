@@ -91,13 +91,13 @@ export interface LampSettings {
 export interface LampState { busy: boolean; active: boolean; message: string }
 
 /**
- * 手动控灯占用标记。
+ * 灯被谁占着。
  *
- * 手动控灯走的是独立的一条连接，不经过 `device` 单例。
- * 如果设备页和实物训练台不知道它在用灯，就会再连一次，
- * 后连的把先连的挤掉（ESP32 只接受一个连接），两边状态都会乱。
+ * 手动控灯和自动训练各开一条独立连接，谁也不知道对方在用灯。
+ * 两条同时连，后连的把先连的挤掉（ESP32 只接受一个连接），两边状态都会乱。
+ * 这里只做标记，由各自在启动前检查对方的标记。
  */
-export const lampOccupancy = { manual: false };
+export const lampOccupancy = { manual: false, training: false };
 
 /** One manual session, independent of the existing automatic training loop. */
 export class ManualLamp {

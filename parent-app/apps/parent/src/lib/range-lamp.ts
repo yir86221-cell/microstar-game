@@ -1,5 +1,5 @@
 import { decodeRange, decodeDeviceStatus, LIGHT_PRESETS, encodeLight, type RangeSample } from '@microstar/core-protocol';
-import { cancelLampSelection, connectLamp, type LampBridge, type LampConnection, type LampSettings } from './manual-lamp.js';
+import { cancelLampSelection, connectLamp, lampOccupancy, type LampBridge, type LampConnection, type LampSettings } from './manual-lamp.js';
 
 export interface RangeResult {
   id: string; startedAt: number; endedAt: number; outcome: 'found' | 'aborted'; reason: string | null;
@@ -24,7 +24,10 @@ export class RangeLamp {
   constructor(private notify: (state: RangeState) => void, private connector: LampBridge['connect'] = connectLamp,
     private save: (result: RangeResult) => void = () => {}) {}
   private update(patch: Partial<RangeState>): void {
-    Object.assign(this.state,patch); if (!this.disposed) this.notify(this.state);
+    Object.assign(this.state,patch);
+    // 自动训练占着灯时，手动控灯不要再开第二条连接
+    lampOccupancy.training = this.state.connected || this.state.busy;
+    if (!this.disposed) this.notify(this.state);
   }
   get locked(): boolean { return this.state.waiting !== null || (this.state.sample?.phase ?? 0) !== 0; }
   get canStart(): boolean {
