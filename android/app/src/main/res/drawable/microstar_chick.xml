@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Reuses the game's own chick artwork. Safe area also fits round launchers. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="320" android:viewportHeight="320">
+    <group android:scaleX="0.65" android:scaleY="0.65" android:translateX="56" android:translateY="56">
+        <path android:fillColor="#FFE600" android:pathData="M119,68Q119,33 144,29Q164,25 156,50Q188,34 193,50Q200,64 181,72Z M55,169a105,107 0,1 0,210 0a105,107 0,1 0,-210 0 M68,157Q22,174 33,205Q46,228 76,199Z M252,157Q298,174 287,205Q274,228 244,199Z"/>
+        <path android:fillColor="#FF9B00" android:pathData="M111,266Q91,279 99,288Q105,293 117,286Q121,306 130,298Q134,292 130,280Q148,294 153,282Q155,271 131,265Z M189,266Q166,271 169,282Q174,294 191,280Q187,292 191,298Q200,306 204,286Q216,293 222,288Q230,279 210,266Z M145,153Q160,150 175,153Q184,154 179,164L166,181Q160,187 154,181L141,164Q136,154 145,153Z"/>
+        <path android:fillColor="#050505" android:pathData="M111,148a10,10 0,1 0,20 0a10,10 0,1 0,-20 0 M189,148a10,10 0,1 0,20 0a10,10 0,1 0,-20 0"/>
+    </group>
+</vector>

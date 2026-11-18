@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ALERT_UUID, LIGHT_UUID, SERVICE_UUID } from "@microstar/core-protocol";
+import { ALERT_UUID, LIGHT_UUID, STATUS_UUID, SERVICE_UUID } from "@microstar/core-protocol";
 import { connectLamp, ManualLamp, type LampConnection, type LampSettings } from "../src/lib/manual-lamp.js";
 
 const settings: LampSettings = { preset: "warmWhite", brightness: 80, photosensitive: false, highLightSensitivity: false, tactileSensitive: false };
@@ -19,6 +19,21 @@ function fake() {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("第四阶段手动控灯", () => {
+  it("reads real STATUS bytes through desktop Web Bluetooth", async () => {
+    const readValue=vi.fn(async()=>new DataView(Uint8Array.from([99,1,0,1]).buffer,1,3));
+    const getCharacteristic=vi.fn(async()=>({writeValue:vi.fn(async()=>{}),readValue}));
+    const selected=Object.assign(new EventTarget(),{gatt:{connected:true,connect:vi.fn(async()=>({getPrimaryService:async()=>({getCharacteristic})})),disconnect:vi.fn()}});
+    vi.stubGlobal("navigator",{bluetooth:{requestDevice:async()=>selected}});
+    const connection=await connectLamp(vi.fn());
+    expect(await connection.readStatus!()).toEqual([1,0,1]);
+    expect(getCharacteristic).toHaveBeenLastCalledWith(STATUS_UUID);
+    await connection.disconnect();
+  });
+  it("does not hide desktop connection errors behind disconnect events", async () => {
+    const selected=Object.assign(new EventTarget(),{gatt:{connected:false,connect:async()=>{selected.dispatchEvent(new Event('gattserverdisconnected'));throw Error('GATT unavailable');},disconnect:vi.fn()}});
+    vi.stubGlobal("navigator",{bluetooth:{requestDevice:async()=>selected}});
+    const off=vi.fn();await expect(connectLamp(off)).rejects.toThrow('GATT unavailable');expect(off).not.toHaveBeenCalled();
+  });
   it("matches the supplied example bytes and stops before disconnecting", async () => {
     const f=fake(); await f.lamp.toggle(settings);
     expect(f.events).toEqual([["LIGHT",0,0,0,255,80],["ALERT",1]]);
@@ -66,6 +81,17 @@ describe("第四阶段手动控灯", () => {
     vi.stubGlobal("navigator",{});
     await expect(connectLamp(vi.fn())).rejects.toThrow("Chrome / Edge");
   });
+  it("shows connection progress and preserves the platform failure", async () => {
+    const messages: string[] = [];
+    const lamp = new ManualLamp(state => messages.push(state.message), async (_off, _owner, progress) => {
+      progress?.("正在建立蓝牙连接");
+      throw Error("建立蓝牙连接失败：Connection failed with status 133");
+    });
+    await lamp.toggle(settings);
+    expect(messages).toContain("正在建立蓝牙连接");
+    expect(lamp.state.busy).toBe(false);
+    expect(lamp.state.message).toContain("status 133");
+  });
   it("selects the exact supplied UUIDs and writes raw bytes on desktop", async () => {
     const alert={writeValue:vi.fn(async()=>{})},light={writeValue:vi.fn(async()=>{})};
     const getCharacteristic=vi.fn(async(uuid:string)=>uuid===ALERT_UUID?alert:light);
@@ -97,7 +123,11 @@ describe("控灯按钮范围", () => {
     for(const stage of [1,2,3,4] as const){
       store.state.plan.stage=stage;
       const screen=render(context);
-      expect(screen.el.querySelectorAll("[data-manual-lamp]").length).toBe(stage===4?1:0);
+      expect(screen.el.textContent?.includes("进入实物训练")).toBe(stage===4);
+      if (stage===4) {
+        expect(screen.el.textContent).not.toMatch(/连接提示灯并开始|开始实物训练|调整参数|按住目标|分钟/);
+        expect(screen.el.textContent).toContain("设置灯光与读取设备状态");
+      }
       screen.destroy?.();
     }
     expect(bluetooth.requestDevice).not.toHaveBeenCalled();

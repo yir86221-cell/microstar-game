@@ -1,4 +1,5 @@
 import type { LightPresetName } from "@microstar/core-protocol";
+import type { RangeResult } from './range-lamp.js';
 import { DEFAULT_LOOP, type LoopParameters, type TrialRecord } from "@microstar/core-domain";
 import { customLevelsAsLevels } from "./customLevels.js";
 import { clearGameRecords, readGameRecords, type GameRecord } from "./gameBridge.js";
@@ -84,6 +85,8 @@ export const defaultMode = (hand: HandFunction): AccessMode => {
 };
 
 export interface SessionRecord {
+  /** Ultrasonic results are separate from touchscreen response metrics. */
+  rangeResult?: RangeResult;
   id: string;
   startedAt: number;
   endedAt: number;
@@ -119,7 +122,7 @@ export interface AppState {
 export const PHASES: { id: PhaseId; name: string; hint: string }[] = [
   { id: 1, name: "发现目标", hint: "看见并回应" },
   { id: 2, name: "认识物品", hint: "认出常见的东西" },
-  { id: 3, name: "生活探索", hint: "在生活场景里找到" },
+  { id: 3, name: "实物照片", hint: "用家长拍摄的实物图片训练" },
 ];
 
 export const LEVELS: Level[] = [
@@ -141,11 +144,7 @@ export const LEVELS: Level[] = [
   { id: "apple", phase: 2, kind: "item", name: "摘下红苹果", target: "红苹果", action: "摘下红苹果", color: "#ff3b30" },
   { id: "starchild", phase: 2, kind: "item", name: "点亮小星星", target: "小星星", action: "点亮小星星", color: "#ffe600" },
 
-  // Phase 3 · 生活探索（4 关）
-  { id: "p3-chick", phase: 3, kind: "item", name: "让小鸡跳舞", target: "小鸡", action: "和小鸡打招呼", color: "#ffe600" },
-  { id: "p3-car", phase: 3, kind: "item", name: "让小车开起来", target: "小车", action: "让小车出发", color: "#00dce9" },
-  { id: "p3-apple", phase: 3, kind: "item", name: "摘下红苹果", target: "红苹果", action: "摘下红苹果", color: "#ff3b30" },
-  { id: "p3-star", phase: 3, kind: "item", name: "点亮小星星", target: "小星星", action: "点亮小星星", color: "#ffe600" },
+  // Phase 3 is populated from the shared photo library.
 ];
 
 export const PHYSICAL_LEVEL: Level = {
@@ -173,7 +172,7 @@ export const levelById = (id: string): Level | undefined => {
 export const STAGE_NAME: Record<StageId, string> = {
   1: "发现目标",
   2: "认识物品",
-  3: "生活探索",
+  3: "实物照片",
   4: "实物训练",
 };
 

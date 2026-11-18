@@ -60,6 +60,8 @@ export function decodeLight(bytes: ArrayLike<number>): Rgbww {
  * 暖白留给"需要看清实物轮廓"的场景。
  */
 export const LIGHT_PRESETS = {
+  green: { r: 0, g: 255, b: 0, w: 0, brightness: DEFAULT_BRIGHTNESS },
+  blue: { r: 0, g: 0, b: 255, w: 0, brightness: DEFAULT_BRIGHTNESS },
   /** 高饱和红：最常用，CVI 儿童对红最敏感 */
   red: { r: 255, g: 0, b: 0, w: 0, brightness: DEFAULT_BRIGHTNESS },
   /** 高饱和黄 */

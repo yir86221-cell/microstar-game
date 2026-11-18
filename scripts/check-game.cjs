@@ -1,12 +1,28 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 function environment(source){const listeners={},wins={},root={innerHTML:'',addEventListener:(t,f)=>listeners[t]=f};const c={document:{querySelector:s=>s==='#app'?root:null,querySelectorAll:()=>[],addEventListener:()=>{},hidden:false},window:{addEventListener:(t,f)=>{const prev=wins[t];wins[t]=prev?e=>{prev(e);f(e)}:f}},requestAnimationFrame:()=>{},console};vm.createContext(c);vm.runInContext(source,c);return{root,listeners,wins,run:s=>vm.runInContext(s,c)};}
 const env=environment(fs.readFileSync(require('node:path').join(__dirname,'../dist/game.js'),'utf8')), {root,run,listeners,wins}=env;
+// Native back navigation must preserve progress when pausing, and backgrounding
+// must cancel in-flight touch gestures instead of completing them on resume.
+run('S.phase=1; startLevel(0); S.round=1');
+assert.equal(run('window.microstarAndroidBack()'),true);
+assert.equal(run('S.overlay'),'pause');assert.equal(run('S.round'),1);
+run('window.microstarAndroidBack()');assert.equal(run('S.page'),'phases');
+run('window.microstarAndroidBack()');assert.equal(run('S.page'),'home');
+assert.equal(run('window.microstarAndroidBack()'),false,'home returns control to Android');
+run('startLevel(0); setOverlay("menu"); window.microstarAndroidBack()');
+assert.equal(run('S.overlay'),'pause','back from menu does not resume the game');
+run('openParent(); window.microstarAndroidBack()');
+assert.equal(run('S.overlay'),'pause','closing parent restores the earlier pause');
+run('startLevel(0); S.hold={elapsed:1100}; window.microstarAndroidPause()');
+assert.equal(run('S.hold'),null);assert.equal(run('parentHold'),null);
+assert.equal(run('S.overlay'),'pause');assert.equal(run('S.round'),0);
+run('home()');
 let time=0;function advance(ms){for(let n=0;n<ms;n+=50){time+=50;run(`tick(${time})`);}}
 function start(p,l,mode='slap'){run(`S.phase=${p};S.mode=${JSON.stringify(mode)};startLevel(${l})`);}
 const node={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};
 function tap(target=node,id=1){listeners.pointerdown({button:0,pointerId:id,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});}
 assert.match(root.innerHTML,/点击或拍击来开始吧/);run('phaseView()');assert.match(root.innerHTML,/Phase III/);
-for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:1);}
+for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:0);}
 // Compare the restored P2/P3 with actual historical source, not a hand-written replica.
 const old=environment(fs.readFileSync(require('node:path').join(__dirname,'fixtures/legacy-game.js'),'utf8'));
 const normalize=s=>s.replace(/<p class="(?:task-caption|mode-note)[^"]*"[^>]*>[\s\S]*?<\/p>/g,'').replace(/ child-sr-only/g,'').replace(/story-levels/g,'').replace(/<button class="preview[^"]*" data-level="[4-9]"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
@@ -48,16 +64,16 @@ assert.equal(run('stageOne[3].color'),'#54e373');assert.equal(run('stageOne[4].c
 start(1,8,'dwell');tap(node,8);advance(500);wins.pointermove({pointerId:8,clientX:200,clientY:50});assert.equal(run('S.hold'),null);assert.equal(run('S.round'),0);tap(node,9);advance(1250);assert.equal(run('S.round'),1);
 console.log('PASS: P2 historical rendering and input regression, restored stage entry, P1 first three, three-tap accelerated motion with arrival-based success, pause/replay/dwell, spatial hide-and-seek and color variation.');
 
-for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("parentHoldMs=1000;action('parent')");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
-start(1,4);run("setOverlay('menu');parentHoldMs=1000;action('parent');action('parent-return')");assert.equal(run('S.overlay'),'menu');
+for(const p of [1,2,3]){start(p,0);assert.match(root.innerHTML,/class="parent-entry"/);run("openParent()");assert.equal(run('S.overlay'),'parent');const round=run('S.round');advance(2000);assert.equal(run('S.round'),round);run("action('parent-return')");assert.equal(run('S.overlay'),null);}
+start(1,4);run("setOverlay('menu');openParent();action('parent-return')");assert.equal(run('S.overlay'),'menu');
 
 for(const p of [1,2]){start(p,0);run('S.round=3;S.reward=1');advance(100);assert.equal(run('S.level'),p===3?2:1);assert.equal(run('S.overlay'),null);assert.equal(run('S.round'),0);start(p,p===1?9:p===2?9:4);run('S.round=3;S.reward=1');advance(100);if(p<3){assert.equal(run('S.phase'),p+1);assert.equal(run('S.level'),0);assert.equal(run('S.overlay'),null);}else assert.equal(run('S.overlay'),'menu');assert.doesNotMatch(root.innerHTML,/这一关完成啦/);}
 
-start(2,1);run("respond();parentHoldMs=1000;action('parent')");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
+start(2,1);run("respond();openParent()");assert.match(root.innerHTML,/src="parent\/index.html"/);assert.match(root.innerHTML,/title="微动星瞳家长端"/);advance(2000);assert.equal(run('S.reward'),1500);run("action('parent-return')");assert.equal(run('S.level'),1);assert.equal(run('S.round'),1);assert.equal(run('S.overlay'),null);
 // 家长入口改为长按：短按不应打开，长按才打开
-start(1,0);run('parentHoldMs=0');run("action('parent')");assert.equal(run('S.overlay'),null);
-start(1,0);run('parentHoldMs=1200');run("action('parent')");assert.equal(run('S.overlay'),'parent');
-console.log('PASS: parent entry requires long press (short press ignored).');
+start(1,0);run("action('parent')");assert.equal(run('S.overlay'),null);
+// Actual touch lifecycle is covered by check-parent-entry.cjs.
+console.log('PASS: parent entry ignores click-only activation.');
 
 // Only the embedded parent frame can apply validated game settings.
 run("globalThis.location={origin:'https://example.test'};globalThis.localStorage={items:{},getItem(k){return this.items[k]||null},setItem(k,v){this.items[k]=v}};globalThis.parentSource={};const baseQuery=document.querySelector;document.querySelector=q=>q==='.parent-frame'?{contentWindow:parentSource}:baseQuery(q)");
@@ -91,7 +107,7 @@ const wagElapsed=run('Pig.elapsed');tap();assert.equal(run('Pig.elapsed'),wagEla
 run('setOverlay("pause")');advance(1500);assert.equal(run('Pig.elapsed'),wagElapsed);run('setOverlay(null)');
 advance(700);assert.equal(run('Pig.phase'),'run');assert.equal(run('S.reward'),0,'tail wag is not success');
 advance(1000);assert.ok(run('Pig.x')>54);assert.equal(run('Pig.phase'),'run');assert.equal(run('S.reward'),0,'success waits until full exit');
-const runElapsed=run('Pig.elapsed');run("parentHoldMs=1000;action('parent')");advance(1000);assert.equal(run('Pig.elapsed'),runElapsed);run("action('parent-return')");advance(1350);
+const runElapsed=run('Pig.elapsed');run("openParent()");advance(1000);assert.equal(run('Pig.elapsed'),runElapsed);run("action('parent-return')");advance(1350);
 assert.equal(run('Pig.phase'),'complete');assert.equal(run('Pig.x'),149);assert.ok(run('S.reward')>0);advance(700);assert.equal(run('S.level'),5);assert.equal(run('S.overlay'),null);
 start(2,4);
 const pigRecords=run("JSON.parse(localStorage.getItem('microstar.game-records.v1'))");assert.equal(pigRecords.at(-1).name,'小猪快跑');assert.equal(pigRecords.at(-1).responses,1);
@@ -108,7 +124,7 @@ for(const [index,durations] of [[5,[2600,2600,2600]],[6,[1250,2200]],[7,[1350,13
  for(let i=0;i<durations.length;i++){
   tap();assert.equal(run('S.round'),i+1);assert.equal(run('Story.busy'),true);tap();assert.equal(run('S.round'),i+1);
   advance(250);const frozen=run('Story.time');run('setOverlay("pause")');advance(1000);assert.equal(run('Story.time'),frozen);run('setOverlay(null)');
-  run('parentHoldMs=1000;action("parent")');advance(500);assert.equal(run('Story.time'),frozen);run('action("parent-return")');
+  run('openParent()');advance(500);assert.equal(run('Story.time'),frozen);run('action("parent-return")');
   advance(durations[i]-250);assert.equal(run('Story.step'),i+1);assert.equal(run('Story.busy'),false);
   if(i<durations.length-1)assert.equal(run('S.reward'),0);else assert.ok(run('S.reward')>0);
  }
@@ -122,30 +138,43 @@ start(2,8);assert.doesNotMatch(run('storyScene()'),/opacity="1"/);tap();advance(
 start(2,9);tap(null);assert.equal(run('S.round'),0,'matching never chooses automatically in slap mode');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1100);assert.equal(run('Story.step'),1);
 start(2,5,'dwell');tap(node,50);advance(500);wins.pointerup({pointerId:50});advance(1000);assert.equal(run('S.round'),0);tap(node,51);advance(1250);assert.equal(run('Story.busy'),true);
 console.log('PASS: P2 6–10 three settled apples, bamboo then panda, two blinks then winged flight, feature growth, all silhouette choices; repeat protection, input modes, pause/parent and automatic progression.');
-// P2 success flows directly to a stationary, manipulable 3D cup without an invented timeout.
-start(2,9,'precise');for(let i=0;i<3;i++){tap();advance(1050);}advance(1200);assert.equal(run('S.phase'),3);assert.equal(run('S.level'),0);assert.equal(run('isCup()'),true);assert.match(root.innerHTML,/可旋转的黄色立体杯子/);
-const mesh=run('cupMesh()');assert.ok((mesh.match(/<polygon/g)||[]).length>400);advance(10000);assert.equal(run('cupMesh()'),mesh,'cup stays still during observation');
-run('turnCup(.7,.2)');assert.notEqual(run('cupMesh()'),mesh);const yaw=run('Cup.yaw');run('setOverlay("pause");turnCup(1)');assert.equal(run('Cup.yaw'),yaw);run('setOverlay(null)');
-run('action("cup-reset")');assert.equal(run('cupMesh()'),mesh);run('action("cup-up")');assert.ok(run('Cup.pitch')<-.3);run('action("replay")');assert.equal(run('Cup.yaw'),.45);
-const cupNode={...node,setPointerCapture:()=>{}};const input={pointerId:80,clientX:100,clientY:100,preventDefault:()=>{}};run('S.mode="precise"');const cStart=run('Cup.yaw');run('globalThis.cupNode={setPointerCapture(){}}');run('cupInput(cupNode,{pointerId:80,clientX:100,clientY:100,preventDefault(){}})');wins.pointermove({pointerId:80,clientX:150,clientY:120});assert.ok(run('Cup.yaw')>cStart);wins.pointerup({pointerId:80});assert.equal(run('Cup.drag'),null);assert.equal(run('S.round'),0,'free exploration is not a clinical score or automatic completion');
-run('turnCup(0,99)');assert.equal(run('Cup.pitch'),1.15);run('turnCup(0,-99)');assert.equal(run('Cup.pitch'),-1.15);
-console.log('PASS: P2 to P3 transition, stationary hollow cup mesh, drag/tap/keyboard controls, pitch limits, pause, replay and cup-only P3.');
-for(const phase of [1,2,3]){run(`S.phase=${phase}`);const count=run('phaseLevels().length');for(let i=0;i<count;i++){start(phase,i);assert.doesNotMatch(root.innerHTML,/<p class="(?:task-caption|mode-note|advanced-hint|advanced-mode-note)/);}}
-start(3,0);assert.doesNotMatch(root.innerHTML,/cup-controls|<h1|拖动黄杯子，转一转/);
-// Handle terminates inside the solid wall, never enters the hollow interior.
-for(let a=-Math.PI/2;a<=Math.PI/2;a+=Math.PI/160)for(let b=0;b<Math.PI*2;b+=Math.PI/12){const y=(.72+.115*Math.cos(b))*Math.sin(a),x=.875-.09*y+(.7+.115*Math.cos(b))*Math.cos(a),z=.115*Math.sin(b);const inner=.805-.085*y;assert.ok(Math.hypot(x,z)>inner,'handle stays outside hollow cavity');}
-console.log('PASS: all child captions removed, cup-only scene and handle geometry outside the cup cavity.');
+// P2 success reaches an honest empty photo stage when no photos exist.
+start(2,9,'precise');for(let i=0;i<3;i++){tap();advance(1050);}advance(1200);
+assert.equal(run('S.phase'),3);assert.equal(run('S.page'),'photo-empty');
+assert.match(root.innerHTML,/还没有照片关卡/);assert.doesNotMatch(root.innerHTML,/可旋转的黄色立体杯子/);
+advance(95000);assert.equal(run('S.page'),'photo-empty');
+run('window.microstarAndroidBack()');assert.equal(run('S.page'),'phases');
+for(const phase of [1,2]){run(`S.phase=${phase}`);const count=run('phaseLevels().length');for(let i=0;i<count;i++){start(phase,i);assert.doesNotMatch(root.innerHTML,/<p class="(?:task-caption|mode-note|advanced-hint|advanced-mode-note)/);}}
 // Directional apples and a stationary panda: only the loose bamboo and mouth change.
 start(2,5);assert.match(run('storyScene()'),/aria-label="苹果树" style="left:50%;top:40%/);
 for(let i=0;i<3;i++){tap();advance(1300);const html=run('storyScene()');const apples=[...html.matchAll(/class="scene-apple" style="left:([\d.]+)%/g)];const x=Number(apples.at(-1)[1]);assert.ok(i===0?x<50:x>50,'first left, later two right');advance(1400);}
 start(2,6,'precise');tap();advance(1300);tap();const mouthStates=[];
 for(let i=0;i<4;i++){advance(300);const html=run('storyScene()');assert.match(html,/aria-label="熊猫" style="left:28%;top:58%;width:36%/);assert.doesNotMatch(html,/panda-chew/);mouthStates.push(html.match(/class="panda-mouth"[^>]*ry="([^"]*)"/)[1]);}
 assert.ok(new Set(mouthStates).size>1,'mouth opens and closes without moving body');assert.match(run('storyScene()'),/panda-bite/);run('setOverlay("pause")');const frozenMeal=run('storyScene()');advance(1000);assert.equal(run('storyScene()'),frozenMeal);
-start(3,0);assert.equal(run('phaseLevels().length'),1);run('setOverlay("menu")');assert.equal((root.innerHTML.match(/data-level=/g)||[]).length,1);assert.doesNotMatch(root.innerHTML,/让小鸡跳舞|让小车开起来|摘下红苹果|点亮小星星/);
-console.log('PASS: centered tree, left/right/right apple routes, stationary panda with bamboo approach and mouth detail, cup-only P3 menu.');
+console.log('PASS: P2 to empty photo stage, photo-stage back navigation and existing P1/P2 scenes.');
 
 start(1,0);advance(95000);assert.equal(run('S.round'),0,'observation has no automatic deadline');
-wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:9,mode:'precise',sound:false,size:'large',timeoutMs:12000}});assert.equal(run('S.phase'),3);assert.equal(run('S.level'),0);assert.equal(run('isCup()'),true);advance(95000);assert.equal(run('S.level'),0);assert.equal(run('S.round'),0);
+wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:9,mode:'precise',sound:false,size:'large',timeoutMs:12000}});assert.equal(run('S.phase'),3);assert.equal(run('S.level'),0);assert.equal(run('S.page'),'photo-empty');advance(95000);assert.equal(run('S.level'),0);assert.equal(run('S.round'),0);
 start(2,5);tap();assert.equal(run('currentRec.rounds.length'),1);const stored=run("JSON.parse(localStorage.getItem('microstar.game.sessions'))");assert.ok(stored.some(r=>r.phase===2&&r.levelIndex===5&&r.rounds.length===1));
 
-run("localStorage.setItem('microstar.custom-levels.v1',JSON.stringify([{id:'custom-cup',name:'我的杯子',target:'我的杯子',image:'data:image/png;base64,AA=='}]))");wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:1,mode:'precise',size:'huge'}});assert.equal(run('S.level'),1);assert.equal(run('TARGET_SIZE'),'huge');assert.match(root.innerHTML,/art-img/);run("setOverlay('menu')");assert.match(root.innerHTML,/我的杯子/);
+const photos=[{id:'custom-first',name:'我的杯子',target:'我的杯子',image:'data:image/png;base64,AA=='},{id:'custom-second',name:'我的小车',target:'我的小车',image:'data:image/jpeg;base64,BBBB'}];
+run(`localStorage.setItem('microstar.custom-levels.v1',${JSON.stringify(JSON.stringify(photos))})`);
+wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:0,levelId:'custom-second',mode:'precise',size:'huge'}});
+assert.equal(run('S.level'),1,'stable photo ID overrides an obsolete index');assert.equal(run('TARGET_SIZE'),'huge');
+assert.match(root.innerHTML,/data:image\/jpeg;base64,BBBB/);assert.doesNotMatch(root.innerHTML,/distractor/);
+for(const mode of ['slap','precise','dwell']){
+ start(3,0,mode);assert.equal((root.innerHTML.match(/data-object="target"/g)||[]).length,1);
+ for(let i=0;i<3;i++){
+  if(mode!=='slap'){tap({dataset:{object:'other'}});assert.equal(run('S.round'),i);}
+  tap(node,90+i);if(mode==='dwell')advance(1250);
+  assert.equal(run('S.round'),i+1);assert.equal(run('currentRec.rounds.length'),i+1);
+  if(i===0){run('setOverlay("pause")');advance(2000);assert.equal(run('S.reward')>0,true);run('setOverlay(null)');}
+  advance(1700);
+ }
+ assert.equal(run('S.level'),1);assert.equal(run('currentLevel().id'),'custom-second');
+}
+run('setOverlay("menu")');assert.equal((root.innerHTML.match(/data-level=/g)||[]).length,2);assert.match(root.innerHTML,/我的杯子/);assert.doesNotMatch(root.innerHTML,/转转黄杯子|让小鸡跳舞/);
+wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,levelId:'custom-deleted',index:0}});assert.equal(run('S.level'),1,'missing photo does not launch another one');
+assert.equal(run("JSON.parse(localStorage.getItem('microstar.game.sessions')).filter(r=>r.phase===3).every(r=>r.levelId==='custom-first')"),true);
+run("openParent();localStorage.setItem('microstar.custom-levels.v1','[]');closeParent()");assert.equal(run('S.page'),'photo-empty','deleting the active photo in the parent area must not crash on return');
+console.log('PASS: photo-only P3, stable IDs, shared images, three input modes, pause, progression, records and deletion.');

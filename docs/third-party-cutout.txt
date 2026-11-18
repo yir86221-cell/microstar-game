@@ -1,0 +1,11 @@
+MediaPipe Tasks Vision 1.2.2 / MagicTouch interactive segmentation
+Copyright Google LLC. Licensed under Apache License 2.0.
+https://www.apache.org/licenses/LICENSE-2.0
+https://github.com/google-ai-edge/mediapipe
+https://developers.google.com/edge/mediapipe/solutions/vision/interactive_segmenter
+Model card (linked by the official model documentation):
+https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MagicTouch.pdf
+Model URL:
+https://storage.googleapis.com/mediapipe-models/interactive_segmenter_v2/magic_touch/int8/latest/interactive_segmentation.task
+Model SHA-256: 38431bc66b883404e8397f74c3579404315b9b52b04a46c6346fe906a7309b03
+The model and WASM are bundled at build time; no photos are uploaded.

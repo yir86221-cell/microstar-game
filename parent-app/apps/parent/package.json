@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",
+    "@mediapipe/tasks-vision": "1.2.2",
     "@microstar/core-domain": "*",
     "@microstar/core-protocol": "*"
   },

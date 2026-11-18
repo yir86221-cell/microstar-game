@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">微动星瞳</string>
+    <string name="title_activity_main">微动星瞳</string>
+    <string name="package_name">cn.microstar.game.demo</string>
+    <string name="custom_url_scheme">cn.microstar.game.demo</string>
+</resources>

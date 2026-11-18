@@ -1,0 +1,84 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+async function main() {
+  const { createNativeLampBridge } = await import('../native/lamp-bridge-core.mjs');
+  const uuid = n => `8a1f000${n}-3c4d-4e5f-9a6b-7c8d9e0f1a2b`;
+  const protocol = { SERVICE_UUID:uuid(1),ALERT_UUID:uuid(2),LIGHT_UUID:uuid(3),MOTION_UUID:uuid(4),STATUS_UUID:uuid(5),DEVICE_NAME:'MicroStar' };
+  const calls=[];
+  let disconnected;
+  const client={
+    async initialize(options){calls.push(['initialize',options]);},async isEnabled(){return true;},
+    async requestDevice(options){calls.push(['request',options]);return {deviceId:'test-lamp'};},
+    async connect(id,callback,options){disconnected=callback;calls.push(['connect',id,options]);},
+    async write(id,service,char,data){calls.push(['write',service,char,Array.from(new Uint8Array(data.buffer))]);},
+    async disconnect(id){calls.push(['disconnect',id]);},
+    async read(id,service,char){calls.push(['read',id,service,char]);return new DataView(Uint8Array.from([99,1,0,1,99]).buffer,1,3);},
+  };
+  const bridge=createNativeLampBridge(client,protocol);
+  let events=0;
+  const c=await bridge.connect(()=>events++);
+  assert.deepEqual(calls[0],['initialize',{androidNeverForLocation:true}]);
+  assert.deepEqual(calls[1],['request',{name:'MicroStar',optionalServices:[uuid(1)]}]);
+  assert.deepEqual(calls[2],['disconnect','test-lamp'],'clear stale GATT before registering a new connection');
+  assert.deepEqual(calls[3],['connect','test-lamp',{timeout:15000}]);
+  assert.deepEqual(await c.readStatus(),[1,0,1]);
+  assert.deepEqual(calls.at(-1),['read','test-lamp',uuid(1),uuid(5)]);
+  await bridge.stopActive();assert.equal(events,0,'permission/selection pause cannot cancel a new connection');
+  await c.writeLight(new Uint8Array([0,0,0,255,80]));await c.writeAlert(1);
+  assert.deepEqual(calls.slice(-2),[['write',uuid(1),uuid(3),[0,0,0,255,80]],['write',uuid(1),uuid(2),[1]]]);
+  await c.writeAlert(2);await c.writeAlert(0x10);await c.writeAlert(0x11);await c.writeAlert(0x10);await assert.rejects(c.writeAlert(3));await assert.rejects(c.writeLight([0,0,0,255,255]));
+  await assert.rejects(bridge.connect(()=>{}),/连接正在使用/);
+  await bridge.stopActive();assert.equal(events,1);assert.deepEqual(calls.at(-2),['write',uuid(1),uuid(2),[0]]);
+  await assert.rejects(c.writeAlert(1),/断开/);
+  const again=await bridge.connect(()=>events++);disconnected();await assert.rejects(again.writeAlert(1),/断开/);
+  const owner=new EventTarget();
+  const owned=await bridge.connect(()=>{},owner);await owned.writeAlert(1);
+  owner.dispatchEvent(new Event('pagehide'));
+  for(let i=0;i<15;i++)await Promise.resolve();
+  assert.deepEqual(calls.at(-2),['write',uuid(1),uuid(2),[0]],'removing iframe sends stop from the host');
+  assert.deepEqual(calls.at(-1),['disconnect','test-lamp']);
+  await assert.rejects(owned.writeAlert(1),/断开/);
+  let off, failures = 0, intentionalEvents = 0;
+  const failing = createNativeLampBridge({...client,
+    async connect(id, callback) {
+      off = callback;
+      if (failures++ === 0) { callback(); throw Error('Connection failed with status 133'); }
+    },
+    async disconnect() { off?.(); },
+  }, protocol);
+  const progress = [];
+  await assert.rejects(failing.connect(()=>intentionalEvents++, undefined, message=>progress.push(message)), /建立蓝牙连接失败：Connection failed with status 133/);
+  assert.equal(intentionalEvents, 0, 'failed connect must preserve the real error, not emit generic disconnect');
+  assert.ok(progress.at(-1).includes('15 秒'));
+  const retry = await failing.connect(()=>intentionalEvents++);
+  await retry.writeAlert(1);
+  await retry.disconnect();
+  assert.equal(intentionalEvents, 0, 'intentional cleanup must not mask an error with generic disconnect');
+  let rangeCallback, stoppedNotifications=0, releaseWrite;
+  const ranges=[];
+  const rangeBridge=createNativeLampBridge({...client,
+    async startNotifications(id,service,char,cb){assert.equal(char,uuid(4));rangeCallback=cb;},
+    async stopNotifications(){stoppedNotifications++;},
+    async read(){return new DataView(Uint8Array.from([99,0,3,240,0,200,0,0,0,0,0,99]).buffer,1,10);},
+    async write(id,service,char,data){
+      const command=data.getUint8(0);calls.push(['range-write',command]);
+      if(command===16)await new Promise(resolve=>{releaseWrite=resolve;});
+    },
+  },protocol);
+  const rc=await rangeBridge.connect(()=>{});await rc.subscribeRange(data=>ranges.push(data));
+  assert.deepEqual(ranges[0],[0,3,240,0,200,0,0,0,0,0]);
+  const starting=rc.writeAlert(16);for(let i=0;i<5;i++)await Promise.resolve();
+  const background=rangeBridge.stopActive();for(let i=0;i<5;i++)await Promise.resolve();
+  assert.deepEqual(calls.at(-1),['range-write',16],'stop must wait for pending start write');
+  releaseWrite();await starting;await background;
+  assert.deepEqual(calls.at(-2),['range-write',0]);
+  rangeCallback(new DataView(new ArrayBuffer(10)));assert.equal(ranges.length,1,'late native notifications ignored');
+  // Assert native wiring, not just the fake client: root script, plugin and permissions.
+  const root=path.resolve(__dirname,'..');
+  assert.match(fs.readFileSync(path.join(root,'dist/index.html'),'utf8'),/src="native-lamp.js"/);
+  assert.match(fs.readFileSync(path.join(root,'android/app/src/main/AndroidManifest.xml'),'utf8'),/neverForLocation/);
+  assert.match(fs.readFileSync(path.join(root,'native/lamp-bridge.js'),'utf8'),/Capacitor.isNativePlatform/);
+  console.log('PASS: Android native BLE bridge bytes, selection, background stop, disconnect and validation.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hitRate } from "@microstar/core-domain";
 
@@ -158,16 +158,13 @@ describe("家长端页面", () => {
     expect(root.querySelector<HTMLElement>("#tabbar")?.style.display).toBe("none");
   });
 
-  it("实物训练台：标题正确", async () => {
-    const root = await mountAt("#/physical");
-    expect(root.textContent).toContain("实物训练");
-    expect(root.textContent).not.toContain("看到了");
-  });
-
-  it("调试台：能挂载并显示字节区", async () => {
-    const root = await mountAt("#/debug");
-    expect(root.textContent).toContain("最近下发的字节");
-    expect(root.textContent).toContain("ALERT");
+  it("removed physical/debug routes cannot launch simulation", async () => {
+    for (const route of ["#/physical", "#/debug"]) {
+      const root=await mountAt(route);
+      expect(root.textContent).toContain(route==="#/physical"?"开始找":"开始训练");
+      expect(root.textContent).not.toContain("最近下发的字节");
+      expect(root.textContent).not.toContain("模拟拿起");
+    }
   });
 
   it("儿童端写下的成绩会被家长端读进来", async () => {
@@ -228,8 +225,8 @@ describe("家长端页面", () => {
     root.querySelectorAll<HTMLButtonElement>("#tabbar .tab")[2]!.click();
     await new Promise((resolve) => setTimeout(resolve, 30));
 
-    const blink = [...root.querySelectorAll<HTMLButtonElement>(".seg")].find(
-      (button) => button.textContent === "闪烁",
+    const blink = [...root.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "试灯闪烁",
     );
     expect(blink).toBeDefined();
     expect(blink?.disabled).toBe(true);
@@ -314,7 +311,7 @@ describe("计划页与档案页", () => {
 });
 
 describe("已拍的实物", () => {
-  it("能改名和删除；删掉当前选中的关卡会退回内置关", async () => {
+  it("删除最后一张照片后保留空选择，不退回卡通关卡", async () => {
     vi.resetModules();
     resetStorage();
 
@@ -357,17 +354,16 @@ describe("已拍的实物", () => {
     // 关卡没了，而且计划不能停在一个已经不存在的关卡上
     expect(root.textContent).not.toContain("我的水杯");
     expect(store.state.plan.levelId).not.toBe(level.id);
-    expect(store.state.plan.levelId).toBeTruthy();
+    expect(store.state.plan.levelId).toBe("");
   });
 });
 
 describe("手动控灯与自动连接的互斥", () => {
-  it("手动控灯占着灯时，设备页不能重复连接", async () => {
+  it("手动控灯占着灯时，设备页点连接会被拒绝并说明原因", async () => {
     vi.resetModules();
     resetStorage();
     document.body.innerHTML = '<div id="root"></div>';
 
-    // 先拿到同一份模块实例，再挂页面
     const lamp = await import("../src/lib/manual-lamp.js");
     lamp.lampOccupancy.manual = true;
 
@@ -376,26 +372,48 @@ describe("手动控灯与自动连接的互斥", () => {
     const root = document.getElementById("root")!;
     mod.mount(root);
 
-    expect(root.textContent).toContain("手动控灯中");
-
-    const connect = [...root.querySelectorAll("button")].find(
-      (b) => b.textContent === "连接" || b.textContent === "重新连接",
+    const connect = [...root.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("连接提示灯"),
     ) as HTMLButtonElement | undefined;
     expect(connect).toBeDefined();
-    expect(connect!.disabled).toBe(true);
+    connect!.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(root.textContent).toContain("手动控灯正在进行");
 
     lamp.lampOccupancy.manual = false;
   });
 
-  it("自动训练连着灯时，手动控灯要提示先断开", async () => {
-    const root = await mountAt("#/train");
+  it("自动训练连着灯时，手动控灯要提示先在设备页断开", async () => {
+    vi.resetModules();
+    resetStorage();
+    document.body.innerHTML = '<div id="root"></div>';
+
+    const lamp = await import("../src/lib/manual-lamp.js");
+    lamp.lampOccupancy.training = true;
+
+    window.location.hash = "#/train";
+    const mod = await import("../src/app.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
     // 切到「实物」阶段才会出现手动控灯按钮
-    const tab = [...root.querySelectorAll("button")].find((b) => b.textContent?.includes("实物"))!;
-    tab.click();
-    await new Promise((r) => setTimeout(r, 30));
+        // 注意：第三阶段改名叫「实物照片」，只按「实物」找会先命中它，
+    // 所以要挑同时含「实物」和「家长」的那个标签
+    const tab = [...root.querySelectorAll("button")].find(
+      (b) => b.textContent?.includes("实物") && b.textContent?.includes("家长"),
+    );
+    expect(tab).toBeDefined();
+    tab!.click();
+    await new Promise((r) => setTimeout(r, 50));
 
     const btn = root.querySelector<HTMLButtonElement>('[data-manual-lamp="true"]');
     expect(btn).not.toBeNull();
-    expect(btn!.textContent).toContain("蓝牙控灯");
+    btn!.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(root.textContent).toContain("请先在设备页停止并断开");
+
+    lamp.lampOccupancy.training = false;
   });
 });
