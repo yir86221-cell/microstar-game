@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {decodeRange,decodeDeviceStatus,decodeMotion} from '@microstar/core-protocol';
-import {RangeLamp} from '../src/lib/range-lamp.js';
+import {RangeLamp,ROUND_CAP_SECONDS} from '../src/lib/range-lamp.js';
 import {connectLamp,type LampConnection,type LampSettings} from '../src/lib/manual-lamp.js';
 const settings:LampSettings={preset:'warmWhite',brightness:80,photosensitive:false,highLightSensitivity:false,tactileSensitive:false};
 export function packet(phase=0,flags=3,elapsed=0){const a=new Uint8Array(10),v=new DataView(a.buffer);a[0]=phase;a[1]=flags;v.setUint16(2,240,true);v.setUint16(4,200,true);v.setUint32(6,elapsed,true);return Array.from(a);}
@@ -103,4 +103,21 @@ it('the real screen exposes preparation and training, locks edits, and records w
     expect(page.el.textContent).toContain('2.3 秒');expect(button('开始找').disabled).toBe(true);
     button('结束训练').click();await flush();f.receive(packet());expect(button('开始找').disabled).toBe(false);
   }finally{page.destroy?.();await flush();delete (window as Window &{microstarLampBridge?:unknown}).microstarLampBridge;}
+});
+
+it('auto-ends a round the device never finishes, and records it as a timeout',async()=>{
+  const f=fixture();await f.lamp.connect();await f.lamp.setColor(settings);
+  f.receive(packet(0,1));
+  await f.lamp.start(settings);
+  f.receive(packet(1,3,0));           // 设备确认开始寻找
+  expect(f.save).not.toHaveBeenCalled();
+  // 设备一直在上报（否则 3 秒心跳就会断开），但始终没报告“找到”
+  for(let i=0;i<=ROUND_CAP_SECONDS;i+=1){
+    await vi.advanceTimersByTimeAsync(1000);
+    if(!f.save.mock.calls.length)f.receive(packet(1,3,0));
+  }
+  expect(f.save).toHaveBeenCalledTimes(1);
+  expect(f.save.mock.calls[0]![0]).toMatchObject({outcome:'aborted',reason:'timeout'});
+  expect(f.events).toContain(0x11);    // 发出了结束指令，而不是丢下不管
+  await f.lamp.disconnect();
 });

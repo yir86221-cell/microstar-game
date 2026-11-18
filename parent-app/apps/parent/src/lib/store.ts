@@ -157,13 +157,42 @@ export const PHYSICAL_LEVEL: Level = {
   color: "#ff2d2d",
 };
 
+/**
+ * 第三阶段的内置关卡。
+ *
+ * 第三阶段原本只有家长自拍的关卡，新用户进去是空的——没得练也没得选。
+ * 这两关一直在，家长拍的照片排在它们后面。
+ *
+ * id 与儿童端 `builtinPhotos` 必须一致，否则家长端选中的关卡儿童端找不到。
+ */
+export const PHOTO_BUILTINS: Level[] = [
+  {
+    id: "photo-cup",
+    phase: 3,
+    kind: "photo",
+    name: "我的杯子",
+    target: "杯子",
+    action: "找到杯子",
+    color: "#ffe600",
+  },
+  {
+    id: "photo-bottle",
+    phase: 3,
+    kind: "photo",
+    name: "我的奶瓶",
+    target: "奶瓶",
+    action: "找到奶瓶",
+    color: "#38d0ff",
+  },
+];
+
 export const levelsOf = (phase: PhaseId): Level[] =>
   LEVELS.filter((l) => l.phase === phase).concat(
-    phase === 3 ? (customLevelsAsLevels() as Level[]) : [],
+    phase === 3 ? [...(customLevelsAsLevels() as Level[]), ...PHOTO_BUILTINS] : [],
   );
 export const levelById = (id: string): Level | undefined => {
   if (id === PHYSICAL_LEVEL.id) return PHYSICAL_LEVEL;
-  const builtIn = LEVELS.find((l) => l.id === id);
+  const builtIn = LEVELS.find((l) => l.id === id) ?? PHOTO_BUILTINS.find((l) => l.id === id);
   if (builtIn) return builtIn;
   // 家长自己拍的关卡不在内置表里，要单独找一次
   return (customLevelsAsLevels() as Level[]).find((l) => l.id === id);

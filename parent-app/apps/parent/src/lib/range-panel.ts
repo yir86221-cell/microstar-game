@@ -1,5 +1,6 @@
 import { card, cardTitle, h } from './dom.js';
-import { RangeLamp } from './range-lamp.js';
+import { estimateRemaining } from '@microstar/core-domain';
+import { RangeLamp, ROUND_CAP_SECONDS } from './range-lamp.js';
 import { saveRangeResult } from './range-record.js';
 import { store } from './store.js';
 import { lampOccupancy, type LampSettings } from './manual-lamp.js';
@@ -78,6 +79,18 @@ export function rangePanel(training:boolean) {
     timing.textContent=r&&r.phase!==0?`初始距离 ${(r.baselineMm/10).toFixed(1)} cm · 设备用时 ${(r.elapsedMs/1000).toFixed(1)} 秒`:'对准物品，观察距离；准备好后由家长点开始。';
     report.textContent=s.reported?`设备报告：${['关灯','闪烁','恒亮','呼吸'][s.reported.mode]}；${s.reported.found?'已找到':'未找到'}；距离${s.reported.valid?'有效':'无效'}`:'总状态按需读取；进度以测距通知为准。';
   }
+  // 硬件读不到稳定电量，所以不显示百分比，只给"大概还能练几次"
+  const physical = store.state.sessions.filter(s=>s.mode==='physical'&&s.litMinutes>0);
+  const enduranceCard = physical.length
+    ? (()=>{
+        const est=estimateRemaining(physical.map(s=>({litMinutes:s.litMinutes,brightness:s.brightness})),
+          {sessionMinutes:plan.maxMinutes,brightness:brightnessValue});
+        return card(cardTitle('耗电与续航'),
+          h('p',null,`累计亮灯 ${Math.round(est.litMinutes)} 分钟`),
+          h('p',{class:'hint'},`按每次 ${plan.maxMinutes} 分钟、亮度 ${brightnessValue} 估算，大概还能练 ${Math.max(0,est.wholeSessions)} 次。`),
+          h('p',{class:'hint'},'这是按时长估算的，不是电量百分比——硬件没有电池采样，读数不稳，错的数字比没有更糟。'));
+      })()
+    : card(cardTitle('耗电与续航'),h('p',{class:'hint'},'还没有亮灯记录。练几次之后，这里会估算「大概还能练几次」。'));
   const el=h('div',{class:'range-panel'},
     card(cardTitle('提示灯'),connection,message,h('div',{class:'range-controls'},connect,disconnect)),
     card(cardTitle('颜色与试灯'),colors,h('label',{class:'field'},h('span',null,'亮度峰值 ',value,` / ${max}`),brightness),save,confirmed,
@@ -85,10 +98,16 @@ export function rangePanel(training:boolean) {
       settings().photosensitive?h('p',{class:'hint'},'档案已禁用试灯闪烁，可用恒亮。'):null),
     card(cardTitle(training?'实物寻找':'实时测距'),distance,phase,timing,
       training?start:null,end,
-      h('p',{class:'hint'},'模块放在物品外，朝向目标物品。读数稳定是准备提示，开始由家长确认。找到后由设备控制呼吸灯和 3 次短震。'),
+      h('p',{class:'hint'},'读数稳定只是准备提示，开始仍由家长确认；找到后由设备控制呼吸灯和 3 次短震。'),
+      h('details',{class:'card'},h('summary',null,'怎么摆、孩子坐哪？'),
+        h('ul',{class:'hint'},
+          h('li',null,'模块放在物品旁边，不要贴在物品上；探头朝向物品，中间别挡东西。'),
+          h('li',null,'物品离孩子 30–60 cm，孩子面对物品坐正，提示灯和物品放在一起。'),
+          h('li',null,'每次开始前看一眼距离读数：一直在跳说明没对准或手挡着，先调好再开始。'),
+          h('li',null,`一轮最多等 ${ROUND_CAP_SECONDS} 秒，没找到会自动结束并记为中断。`))),
       settings().tactileSensitive?h('p',{class:'hint'},'档案要求关闭震动；此固件没有关闭震动指令，暂不启动训练。'):null),
-    h('p',{class:'hint'},'离开本页或切到后台会请求关灯并断开。设备测距结果不等同于抓握能力或康复评分。'),
-    h('details',{class:'card'},h('summary',null,'连不上怎么办？'),h('p',{class:'hint'},'确认设备已上电，蓝牙和附近设备权限已开启。关闭其他连接 MicroStar 的应用；本版本需要新版测距固件。')));
+    enduranceCard,
+    h('p',{class:'hint'},'离开本页或切到后台会请求关灯并断开。设备测距结果不等同于抓握能力或康复评分。'),    h('details',{class:'card'},h('summary',null,'连不上怎么办？'),h('p',{class:'hint'},'确认设备已上电，蓝牙和附近设备权限已开启。关闭其他连接 MicroStar 的应用；本版本需要新版测距固件。')));
   const hidden=()=>{if(document.hidden&&lamp.state.connected)void lamp.disconnect('应用进入后台，训练已中断。');};
   const leave=()=>lamp.dispose();
   document.addEventListener('visibilitychange',hidden);window.addEventListener('pagehide',leave);

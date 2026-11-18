@@ -137,12 +137,13 @@ export const render: ScreenRenderer = (ctx) => {
       const r=record.rangeResult;
       return h('div',{class:'card'},h('strong',null,'实物寻找 · 设备测距'),
         kv('时间',`${dateLabel(record.startedAt)} ${timeLabel(record.startedAt)}`),
-        kv('结果',r.outcome==='found'?'设备报告已找到':'中断'),
+        kv('判定方式','设备测距：由固件判定“找到”，家长不参与打分'),
+        kv('结果',r.outcome==='found'?'设备报告已找到':r.reason==='timeout'?'超时自动结束':'中断'),
         kv('设备用时',r.outcome==='found'?`${((r.sample?.elapsedMs??0)/1000).toFixed(1)} 秒`:'—'),
         kv('初始距离',r.sample?`${(r.sample.baselineMm/10).toFixed(1)} cm`:'—'),
         kv('结束距离',r.sample?.valid?`${(r.sample.distanceMm/10).toFixed(1)} cm`:'无有效读数'),
         kv('颜色 R/G/B/暖白',r.color.slice(0,4).join(' / ')),kv('亮度',String(r.color[4])),
-        h('p',{class:'hint'},'由设备测距判定，不等同于抓握能力评分。'));
+        h('p',{class:'hint'},'这一关的“用时”是设备报告的距离变化时间，和前三阶的触屏反应时不是一回事，所以不并入命中率与 P50/P90。'));
     }
     const s = statsOf(record);
     const detail = h(

@@ -41,7 +41,7 @@ it('creates a persistent full-colour photo level and selects the same ID for tra
   const {store,levelsOf}=await import('../src/lib/store.js');
   expect(store.state.plan.stage).toBe(3); expect(store.state.plan.levelId).toBe(saved.id);
   expect(saved.sourceImage).toBe('data:image/jpeg;base64,BBBB');expect(saved.maskImage).toBe('data:image/png;base64,CCCC');
-  expect(levelsOf(3).map(l=>l.id)).toEqual([saved.id]);expect(navigate).toHaveBeenCalledWith('train');
+  expect(levelsOf(3).map(l=>l.id)).toEqual([saved.id,'photo-cup','photo-bottle']);expect(navigate).toHaveBeenCalledWith('train');
   screen.destroy?.(); vi.resetModules();
   const reloaded=await import('../src/lib/customLevels.js');expect(reloaded.readCustomLevels()[0]?.image).toBe(saved.image);
   const {render}=await import('../src/screens/child.js'); const child=render({navigate:vi.fn(),rerender:vi.fn()});
@@ -54,11 +54,14 @@ it('keeps the photo and shows an error when saving exceeds device storage',async
   expect(screen.el.querySelector('[role=alert]')?.textContent).toContain('保存失败');expect(navigate).not.toHaveBeenCalled();
   expect(screen.el.querySelector('.photo-level-preview')).not.toBeNull(); screen.destroy?.();
 });
-it('empty or obsolete third-stage plans show creation controls instead of cartoon training',async()=>{
+it('obsolete third-stage plans fall back to a built-in photo level, never a cartoon',async()=>{
   const {store}=await import('../src/lib/store.js');store.update(s=>{s.plan.stage=3;s.plan.levelId='p3-chick';});
   const {render}=await import('../src/screens/train.js');const screen=render({navigate:vi.fn(),rerender:vi.fn()});
-  expect(screen.el.textContent).toContain('拍照制作关卡');expect(screen.el.textContent).not.toContain('开始训练');
-  expect(screen.el.textContent).not.toContain('让小鸡跳舞');screen.destroy?.();
+  // 内置关卡在，所以可以开始训练；但绝不能退回第一阶段的小鸡
+  expect(screen.el.textContent).toContain('拍照制作关卡');
+  expect(screen.el.textContent).toContain('开始训练');
+  expect(screen.el.textContent).not.toContain('让小鸡跳舞');
+  screen.destroy?.();
 });
 it('leaving while a photo is loading cannot resurrect a stale draft',async()=>{
   let resolve!: (v:string)=>void;

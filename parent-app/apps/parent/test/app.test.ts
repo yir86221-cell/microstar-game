@@ -311,7 +311,7 @@ describe("计划页与档案页", () => {
 });
 
 describe("已拍的实物", () => {
-  it("删除最后一张照片后保留空选择，不退回卡通关卡", async () => {
+  it("删除最后一张照片后退回内置关卡，不退回卡通关卡", async () => {
     vi.resetModules();
     resetStorage();
 
@@ -354,7 +354,8 @@ describe("已拍的实物", () => {
     // 关卡没了，而且计划不能停在一个已经不存在的关卡上
     expect(root.textContent).not.toContain("我的水杯");
     expect(store.state.plan.levelId).not.toBe(level.id);
-    expect(store.state.plan.levelId).toBe("");
+    // 第三阶段现在有内置关卡兜底：既不留空，也不会退回第一阶段的小鸡
+    expect(store.state.plan.levelId).toBe("photo-cup");
   });
 });
 
@@ -415,5 +416,118 @@ describe("手动控灯与自动连接的互斥", () => {
     expect(root.textContent).toContain("请先在设备页停止并断开");
 
     lamp.lampOccupancy.training = false;
+  });
+});
+
+describe("训练页的排布", () => {
+  it("开始训练在当前关卡列表上方，不用滑到底", async () => {
+    const root = await mountAt("#/train");
+    const html = root.innerHTML;
+    const start = html.indexOf("开始训练");
+    const list = html.indexOf("level-list");
+    expect(start).toBeGreaterThan(-1);
+    expect(list).toBeGreaterThan(-1);
+    expect(start).toBeLessThan(list);
+  });
+
+  it("第三阶段的「拍照制作关卡」在关卡列表下方", async () => {
+    const root = await mountAt("#/train");
+    const { store } = await import("../src/lib/store.js");
+    store.update((s) => {
+      s.plan.stage = 3;
+      s.plan.levelId = "photo-cup";
+    });
+    await new Promise((r) => setTimeout(r, 30));
+
+    const html = root.innerHTML;
+    const make = html.indexOf("拍照制作关卡");
+    const list = html.indexOf("level-list");
+    expect(make).toBeGreaterThan(-1);
+    expect(list).toBeGreaterThan(-1);
+    // 拍照是「加内容」，放最下面；开始训练才在上面
+    expect(make).toBeGreaterThan(list);
+  });
+
+  it("第三阶段把家长自制的关卡排在内置关卡前面", async () => {
+    vi.resetModules();
+    resetStorage();
+    window.localStorage.setItem(
+      "microstar.custom-levels.v1",
+      JSON.stringify([
+        {
+          id: "custom-own-1",
+          name: "我的水壶",
+          target: "我的水壶",
+          color: "#9fd8b4",
+          image: "data:image/png;base64,AAAA",
+          thumb: "data:image/png;base64,AAAA",
+          createdAt: Date.now(),
+        },
+      ]),
+    );
+
+    const { levelsOf } = await import("../src/lib/store.js");
+    expect(levelsOf(3).map((l) => l.id)).toEqual(["custom-own-1", "photo-cup", "photo-bottle"]);
+  });
+});
+
+describe("数据页分阶段与续航提示", () => {
+  it("数据页只统计选中的阶段，点标签能切换", async () => {
+    const root = await mountAt("#/data");
+    const { store } = await import("../src/lib/store.js");
+    // 演示数据跨第一阶段和第二阶段
+    store.loadDemo();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(root.textContent).toContain("发现目标");
+    expect(root.textContent).toContain("认识物品");
+    expect(root.textContent).toContain("只统计「发现目标」");
+
+    const tab = [...root.querySelectorAll("button")].find(
+      (b) => b.textContent?.includes("认识物品"),
+    )!;
+    tab.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    // 切换后指标只算第二阶段，不会把第一阶段的回合混进来
+    expect(root.textContent).toContain("只统计「认识物品」");
+    expect(root.textContent).not.toContain("只统计「发现目标」");
+  });
+
+  it("有实物记录后，设备页会给出还能练几次的估算", async () => {
+    vi.resetModules();
+    resetStorage();
+    document.body.innerHTML = '<div id="root"></div>';
+    window.location.hash = "#/device";
+
+    const { store } = await import("../src/lib/store.js");
+    store.update((s) => {
+      s.sessions = [
+        {
+          id: "range-1",
+          startedAt: Date.now() - 600_000,
+          endedAt: Date.now() - 540_000,
+          stage: 4,
+          levelId: "physical",
+          levelName: "实物寻找 · 设备测距",
+          mode: "physical",
+          trials: [],
+          litMinutes: 10,
+          brightness: 75,
+          origin: "parent",
+          rangeResult: { id: "range-1", startedAt: 0, endedAt: 1, outcome: "found", reason: null, sample: null, color: [255, 0, 0, 0, 75] },
+        } as never,
+      ];
+    });
+
+    const mod = await import("../src/app.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
+    expect(root.textContent).toContain("耗电与续航");
+    expect(root.textContent).toContain("累计亮灯 10 分钟");
+    expect(root.textContent).toContain("大概还能练");
+    // 明确不显示电量百分比——硬件读不到
+    expect(root.textContent).not.toMatch(/\d+%/);
   });
 });
