@@ -45,8 +45,8 @@ function sound(){if(!(soundOn??(S.phase===1||isPig()||isStory())))return;try{aud
 let framePending=false;
 function requestTick(){if(framePending||S.page!=='game'||S.overlay||!(S.hold||S.reward||S.toastRemaining||needsTaskTick()||needsPigTick()||needsStoryTick()))return;framePending=true;requestAnimationFrame(t=>{framePending=false;if(!lastTick)lastTick=t;tick(t);});}
 function endHold(){S.hold=null;document.querySelector('.dwell-ring')?.remove();}
-function setOverlay(value){if(S.page==='game'){if(value&&!S.overlay)gamePausedAt=Date.now();if(!value&&S.overlay&&gamePausedAt){const pauseDelta=Date.now()-gamePausedAt;gamePausedTotal+=pauseDelta;roundStartAt+=pauseDelta;gamePausedAt=0;}}endHold();Cup.drag=null;S.overlay=value;render();}
-function startLevel(index=S.level){if(S.phase===3&&!phaseLevels().length){endHold();S.page='photo-empty';S.level=0;S.overlay=null;S.reward=0;currentRec=null;render();return;}index=Math.max(0,Math.min(phaseLevels().length-1,index));gameStartedAt=Date.now();gamePausedAt=0;gamePausedTotal=0;endHold();S.page='game';S.level=index;S.round=0;S.reward=0;S.overlay=null;S.targetSlot=0;S.toast='';resetTask();resetPig();resetStory();resetCup();recStart();render();}
+function setOverlay(value){if(S.page==='game'){if(value&&!S.overlay)gamePausedAt=Date.now();if(!value&&S.overlay&&gamePausedAt){const pauseDelta=Date.now()-gamePausedAt;gamePausedTotal+=pauseDelta;roundStartAt+=pauseDelta;gamePausedAt=0;}}endHold();S.overlay=value;render();}
+function startLevel(index=S.level){if(S.phase===3&&!phaseLevels().length){endHold();S.page='photo-empty';S.level=0;S.overlay=null;S.reward=0;currentRec=null;render();return;}index=Math.max(0,Math.min(phaseLevels().length-1,index));gameStartedAt=Date.now();gamePausedAt=0;gamePausedTotal=0;endHold();S.page='game';S.level=index;S.round=0;S.reward=0;S.overlay=null;S.targetSlot=0;S.toast='';resetTask();resetPig();resetStory();recStart();render();}
 function tell(message){S.toast=message;S.toastRemaining=1800;const n=document.querySelector('.toast');if(n)n.textContent=message;}
 function home(){endHold();Object.assign(S,{page:'home',overlay:null,reward:0});render();}
 function phaseView(){endHold();Object.assign(S,{page:'phases',overlay:null,reward:0});render();}
@@ -61,10 +61,10 @@ function parentView(){return '<div class="overlay parent-overlay"><section class
 function openParent(){if(S.overlay==='parent')return;parentPreviousOverlay=S.overlay;setOverlay('parent');window.microstarAppUpdates?.onParentOpen();}
 function closeParent(){if(S.page==='game'&&S.phase===3){const list=[...customLevels(),...builtinPhotos],index=list.findIndex(l=>l.id===currentRec?.levelId);if(index<0){endHold();S.page=list.length?'phases':'photo-empty';S.overlay=null;S.reward=0;currentRec=null;parentPreviousOverlay=null;render();return;}S.level=index;}setOverlay(parentPreviousOverlay);parentPreviousOverlay=null;requestAnimationFrame(()=>document.querySelector('.parent-entry')?.focus({preventScroll:true}));}
 function render(){cancelParentHold();requestTick();app.innerHTML=(S.page==='home'?homeView():S.page==='phases'?phasesView():S.page==='photo-empty'?emptyPhotosView():gameView())+(S.overlay==='menu'?menuView():S.overlay==='pause'?pauseView():S.overlay==='parent'?parentView():'')+parentEntry();if(S.overlay){requestAnimationFrame(()=>document.querySelector('[role="dialog"] button')?.focus({preventScroll:true}));}}
-function respond(){if(isCup()){endHold();Cup.drag=null;turnCup(.5);return;}if(isStory())return triggerStory();if(isPig())return triggerPig();if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();S.reward=1500;recRound(Date.now()-roundStartAt);S.round++;S.toast='';sound();render();}
-function action(name){switch(name){case'cup-left':turnCup(-.5);break;case'cup-right':turnCup(.5);break;case'cup-up':turnCup(0,-.25);break;case'cup-reset':resetCup();paintCup();break;case'parent':return;case'app-update':window.microstarAppUpdates?.show();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':if((isPig()&&Pig.phase==='complete')||(isStory()&&Story.done))startLevel();else setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1||isPig()||isStory()));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
+function respond(){if(isStory())return triggerStory();if(isPig())return triggerPig();if(isAdvanced())return respondAdvanced();if(S.page!=='game'||S.overlay||S.reward)return;endHold();S.reward=1500;recRound(Date.now()-roundStartAt);S.round++;S.toast='';sound();render();}
+function action(name){switch(name){case'parent':return;case'app-update':window.microstarAppUpdates?.show();break;case'parent-return':closeParent();break;case'motion':beginMotion();break;case'easier':E.easy=!E.easy;startLevel();setOverlay('menu');break;case'start':phaseView();break;case'home':home();break;case'phases':phaseView();break;case'pause':setOverlay('pause');break;case'menu':setOverlay('menu');break;case'resume':if((isPig()&&Pig.phase==='complete')||(isStory()&&Story.done))startLevel();else setOverlay(null);break;case'replay':startLevel();break;case'next':S.level===phaseLevels().length-1?setOverlay('menu'):startLevel(S.level+1);break;case'sound':soundOn=!(soundOn??(S.phase===1||isPig()||isStory()));render();break;case'fullscreen':if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{document.documentElement.requestFullscreen?.().catch(()=>{});}break;}}
 app.addEventListener('click',e=>{if(parentClickBlocked){parentClickBlocked=false;e.preventDefault();return;}const b=e.target.closest('button');if(b?.dataset.action){action(b.dataset.action);return;}if(S.overlay==='parent')return;if(b?.dataset.phase){S.phase=Number(b.dataset.phase);startLevel(0);return;}if(b?.dataset.level!==undefined){endHold();startLevel(Number(b.dataset.level));setOverlay('menu');return;}if(b?.dataset.mode){endHold();S.mode=b.dataset.mode;startLevel();setOverlay('menu');return;}if(S.page==='home'){phaseView();return;}if(isAdvanced()&&e.detail===0&&S.page==='game'&&!S.overlay){advancedInput(b?.dataset.object?b:null,null);return;}if(e.detail===0&&b?.dataset.object&&S.page==='game'&&!S.overlay){if((S.mode==='slap'&&currentLevel().id!=='colors')||b.dataset.object==='target')respond();}});
-app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isCup()){cupInput(obj,e);return;}if(isStory()){storyInput(obj,e);return;}if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){markOffset(obj,e);respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
+app.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('[data-action],.overlay,[data-phase]'))return;if(S.page!=='game'||S.overlay||S.reward)return;const obj=e.target.closest('[data-object]');if(isStory()){storyInput(obj,e);return;}if(isAdvanced()){advancedInput(obj,e);return;}if(currentLevel().id==='colors'&&obj?.dataset.object!=='target')return;if(S.mode==='slap'){respond();return;}if(obj?.dataset.object!=='target'){if(obj)tell('再找找目标吧');return;}if(S.mode==='precise'){markOffset(obj,e);respond();return;}endHold();S.hold={id:e.pointerId,elapsed:0,node:obj};obj.insertAdjacentHTML('beforeend','<span class="dwell-ring"></span>');requestTick();e.preventDefault();});
 window.addEventListener('pointermove',e=>{if(!S.hold||e.pointerId!==S.hold.id)return;const r=S.hold.node.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)endHold();});
 window.addEventListener('pointerup',e=>{if(S.hold?.id===e.pointerId)endHold();});window.addEventListener('pointercancel',endHold);window.addEventListener('blur',()=>{if(S.page==='game'&&!S.overlay)setOverlay('pause');else endHold();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.page==='game'&&!S.overlay)setOverlay('pause');});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();if(S.overlay==='parent'){closeParent();return;}if(S.page==='game')setOverlay(S.overlay===null?'pause':null);else if(S.page==='phases')home();return;}if(S.overlay&&e.key==='Tab'){const controls=[...document.querySelectorAll('[role="dialog"] button')];if(!controls.length)return;const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
@@ -125,7 +125,7 @@ function advancedGameView(){
  const response=Boolean(S.reward||E.boost);
  return `<section class="page game advanced-game ${E.easy?'easy-mode':''}" data-kind="${k}"><div class="topbar"><button class="icon-btn" data-action="pause" aria-label="暂停游戏">${icon.pause}</button><button class="icon-btn" data-action="menu" aria-label="打开游戏菜单">${icon.menu}</button><button class="small-btn" data-action="phases">返回阶段</button>${dynamic()&&!E.started?'<button class="small-btn motion-start" data-action="motion">开始运动</button>':''}</div><h1 class="advanced-title">P1 · ${S.level+1} / 10 · ${escapeHtml(l.name)}</h1><div class="task-content"><div class="task-stage"><div class="moving-anchor" style="--x:${pos.x}%;--y:${pos.y}%;--scale:${taskScale()}"><button class="object target task-object ${response?'task-reward':''}" data-object="target" aria-label="${k==='shapes'?'绿色'+shapeName():l.target}" ${motionHidden()?'hidden':''} style="--task-color:${l.color}"><div class="art">${simpleArt(type,l.color)}</div></button></div></div></div><div class="toast child-sr-only" role="status">${S.toast}</div></section>`;
 }
-function gameView(){return isCup()?cupView():isStory()?storyView():isPig()?pigView():isAdvanced()?advancedGameView():legacyGameView();}
+function gameView(){return isStory()?storyView():isPig()?pigView():isAdvanced()?advancedGameView():legacyGameView();}
 function beginMotion(){if(!dynamic()||S.overlay||S.reward||E.started)return;E.started=true;E.running=true;E.elapsed=0;lastTick=0;render();}
 function boostStep(){
  if(!isBoost()||S.page!=='game'||S.overlay||S.reward||E.boost||S.round>=3)return;
@@ -249,42 +249,6 @@ function storyInput(obj,e){if(Story.busy||Story.done)return;const matching=curre
 function advanceStory(dt){if(!needsStoryTick())return;Story.time+=dt;const id=currentLevel().id;const duration=id==='tree'?2600:id==='panda'?(Story.step===0?1250:2200):id==='egg'?(Story.step===2?2400:1350):id==='leaf'?1450:1000;
  if(Story.time>=duration){Story.busy=false;Story.step++;Story.time=0;if(Story.step>=storyResponses()){Story.done=true;S.reward=1100;}render();}else{const field=document.querySelector('.story-field');if(field)field.innerHTML=storyScene();}}
 
-// Dependency-free projected 3D mesh: hollow tapered vessel, rim, base and rounded handle.
-const cupLevel={id:'yellowCup',name:'转转黄杯子',target:'黄色杯子',action:'拖动杯子，看看不同方向',feedback:'换个方向看看'};
-const Cup={yaw:.45,pitch:-.3,drag:null};
-function isCup(){return S.phase===3&&currentLevel().id==='yellowCup';}
-function resetCup(){Cup.yaw=.45;Cup.pitch=-.3;Cup.drag=null;}
-function cupMesh(){
- const faces=[],tau=Math.PI*2,n=40;
- const point=(r,y,a)=>[r*Math.cos(a),y,r*Math.sin(a)];
- const add=(v,inside=false)=>faces.push({v,inside});
- for(let i=0;i<n;i++){const a=i/n*tau,b=(i+1)/n*tau;
-  add([point(1,-1,a),point(.82,1,a),point(.82,1,b),point(1,-1,b)]);
-  add([point(.89,-1,b),point(.72,.78,b),point(.72,.78,a),point(.89,-1,a)],true);
-  add([point(1,-1,b),point(.89,-1,b),point(.89,-1,a),point(1,-1,a)]);
-  add([[0,.78,0],point(.72,.78,a),point(.72,.78,b)],true);
-  add([[0,1,0],point(.82,1,b),point(.82,1,a)]);
- }
- const hp=(a,b)=>{const y=(.72+.115*Math.cos(b))*Math.sin(a);return [.875-.09*y+(.7+.115*Math.cos(b))*Math.cos(a),y,.115*Math.sin(b)];};
- for(let i=0;i<28;i++)for(let j=0;j<8;j++){const a=-Math.PI/2+i/28*Math.PI,b=-Math.PI/2+(i+1)/28*Math.PI,c=j/8*tau,d=(j+1)/8*tau;add([hp(a,c),hp(b,c),hp(b,d),hp(a,d)]);}
- const transform=([x,y,z])=>{const xx=x*Math.cos(Cup.yaw)+z*Math.sin(Cup.yaw),zz=-x*Math.sin(Cup.yaw)+z*Math.cos(Cup.yaw);return[xx,y*Math.cos(Cup.pitch)-zz*Math.sin(Cup.pitch),y*Math.sin(Cup.pitch)+zz*Math.cos(Cup.pitch)];};
- const polygons=faces.map(f=>{const v=f.v.map(transform),a=v[0],u=v[1].map((x,i)=>x-a[i]),w=v[2].map((x,i)=>x-a[i]),normal=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]],len=Math.hypot(...normal)||1;
-  const light=Math.max(0,(-normal[0]*.35-normal[1]*.6+normal[2]*.72)/len),shade=(f.inside?.65:.78)+light*.22;
-  const color=`rgb(${Math.round(255*shade)},${Math.round(221*shade)},${Math.round(25*shade)})`;
-  const points=v.map(([x,y,z])=>{const p=5/(5-z);return `${(225+x*103*p).toFixed(2)},${(225+y*103*p).toFixed(2)}`;}).join(' ');
-  return {z:v.reduce((s,p)=>s+p[2],0)/v.length,markup:`<polygon points="${points}" fill="${color}" stroke="${color}" stroke-width=".55" stroke-linejoin="round"/>`};
- }).sort((a,b)=>a.z-b.z);
- return `<svg class="cup-mesh" viewBox="0 0 500 450" aria-hidden="true">${polygons.map(p=>p.markup).join('')}</svg>`;
-}
-arts.yellowCup=()=>svg('<path d="M225 115h27q51 0 28 64q-15 32-51 29" fill="none" stroke="#ffdf24" stroke-width="23"/><path fill="#ffdf24" d="M62 91h174l-16 151q-65 36-137 0Z"/><ellipse cx="149" cy="91" rx="87" ry="27" fill="#ffe94b"/><ellipse cx="149" cy="92" rx="72" ry="17" fill="#b99b12"/>');
-function cupView(){return `<section class="page game cup-game"><div class="topbar"><button class="icon-btn" data-action="pause" aria-label="暂停游戏">${icon.pause}</button><button class="icon-btn" data-action="menu" aria-label="打开游戏菜单">${icon.menu}</button><button class="icon-btn" data-action="phases" aria-label="返回阶段">${icon.back}</button></div><button class="cup-stage" data-object="target" aria-label="可旋转的黄色立体杯子，拖动或使用方向键旋转">${cupMesh()}</button></section>`;}
-function turnCup(dx,dy=0){if(!isCup()||S.overlay)return;Cup.yaw+=dx;Cup.pitch=Math.max(-1.15,Math.min(1.15,Cup.pitch+dy));paintCup();}
-function paintCup(){const node=document.querySelector('.cup-stage');if(node)node.innerHTML=cupMesh();}
-function cupInput(obj,e){if(!isCup()||S.overlay)return;if(!obj){if(S.mode==='slap')turnCup(.4);return;}endHold();Cup.drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,node:obj};obj.setPointerCapture?.(e.pointerId);if(S.mode==='dwell'){S.hold={id:e.pointerId,elapsed:0,node:obj};requestTick();}e.preventDefault();}
-window.addEventListener('pointermove',e=>{const d=Cup.drag;if(!d||d.id!==e.pointerId||!isCup()||S.overlay)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(Math.abs(dx)+Math.abs(dy)>2){d.moved=true;endHold();turnCup(dx*.012,dy*.008);d.x=e.clientX;d.y=e.clientY;}});
-window.addEventListener('pointerup',e=>{if(Cup.drag?.id!==e.pointerId)return;const d=Cup.drag;Cup.drag=null;if(!d.moved&&S.mode!=='dwell')turnCup(.4);});
-window.addEventListener('pointercancel',()=>{Cup.drag=null;});
-window.addEventListener('keydown',e=>{if(!isCup()||S.overlay||!e.target?.closest?.('.cup-stage'))return;const moves={ArrowLeft:[-.25,0],ArrowRight:[.25,0],ArrowUp:[0,-.15],ArrowDown:[0,.15]};if(moves[e.key]){e.preventDefault();turnCup(...moves[e.key]);}});
 
 render();
 /* Android long presses can omit click. Complete the hold directly, while the
@@ -390,6 +354,6 @@ window.microstarAndroidBack=function(){
  return false;
 };
 window.microstarAndroidPause=function(){
- endHold();cancelParentHold();Cup.drag=null;
+ endHold();cancelParentHold();
  if(S.page==='game'&&!S.overlay)setOverlay('pause');
 };

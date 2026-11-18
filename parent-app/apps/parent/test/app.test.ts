@@ -470,3 +470,64 @@ describe("训练页的排布", () => {
     expect(levelsOf(3).map((l) => l.id)).toEqual(["custom-own-1", "photo-cup", "photo-bottle"]);
   });
 });
+
+describe("数据页分阶段与续航提示", () => {
+  it("数据页只统计选中的阶段，点标签能切换", async () => {
+    const root = await mountAt("#/data");
+    const { store } = await import("../src/lib/store.js");
+    // 演示数据跨第一阶段和第二阶段
+    store.loadDemo();
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(root.textContent).toContain("发现目标");
+    expect(root.textContent).toContain("认识物品");
+    expect(root.textContent).toContain("只统计「发现目标」");
+
+    const tab = [...root.querySelectorAll("button")].find(
+      (b) => b.textContent?.includes("认识物品"),
+    )!;
+    tab.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    // 切换后指标只算第二阶段，不会把第一阶段的回合混进来
+    expect(root.textContent).toContain("只统计「认识物品」");
+    expect(root.textContent).not.toContain("只统计「发现目标」");
+  });
+
+  it("有实物记录后，设备页会给出还能练几次的估算", async () => {
+    vi.resetModules();
+    resetStorage();
+    document.body.innerHTML = '<div id="root"></div>';
+    window.location.hash = "#/device";
+
+    const { store } = await import("../src/lib/store.js");
+    store.update((s) => {
+      s.sessions = [
+        {
+          id: "range-1",
+          startedAt: Date.now() - 600_000,
+          endedAt: Date.now() - 540_000,
+          stage: 4,
+          levelId: "physical",
+          levelName: "实物寻找 · 设备测距",
+          mode: "physical",
+          trials: [],
+          litMinutes: 10,
+          brightness: 75,
+          origin: "parent",
+          rangeResult: { id: "range-1", startedAt: 0, endedAt: 1, outcome: "found", reason: null, sample: null, color: [255, 0, 0, 0, 75] },
+        } as never,
+      ];
+    });
+
+    const mod = await import("../src/app.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
+    expect(root.textContent).toContain("耗电与续航");
+    expect(root.textContent).toContain("累计亮灯 10 分钟");
+    expect(root.textContent).toContain("大概还能练");
+    // 明确不显示电量百分比——硬件读不到
+    expect(root.textContent).not.toMatch(/\d+%/);
+  });
+});
