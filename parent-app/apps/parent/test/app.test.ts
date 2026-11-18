@@ -531,3 +531,29 @@ describe("数据页分阶段与续航提示", () => {
     expect(root.textContent).not.toMatch(/\d+%/);
   });
 });
+
+describe("点下去没反应的地方必须给提示", () => {
+  it("提示浮层会出现、替换文字，并在 6 秒后自己消失", async () => {
+    vi.resetModules();
+    document.body.innerHTML = '<div id="root"></div>';
+    vi.useFakeTimers();
+    try {
+      const { showNotice } = await import("../src/lib/notice.js");
+      showNotice("第一条");
+      const el = document.getElementById("microstar-notice")!;
+      expect(el).not.toBeNull();
+      expect(el.textContent).toBe("第一条");
+      expect(el.getAttribute("role")).toBe("alert");
+
+      showNotice("第二条");
+      expect(document.querySelectorAll("#microstar-notice").length).toBe(1);
+      expect(document.getElementById("microstar-notice")!.textContent).toBe("第二条");
+
+      vi.advanceTimersByTime(6000);
+      expect(document.getElementById("microstar-notice")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      document.getElementById("microstar-notice")?.remove();
+    }
+  });
+});

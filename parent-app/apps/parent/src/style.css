@@ -1405,3 +1405,8 @@ html.embedded #tabbar {
 .range-colors .btn.active { background: var(--accent); color: var(--accent-ink); }
 .range-panel .card { margin-bottom: 16px; }
 .range-panel .btn:disabled { opacity: .45; }
+/* 家长端的临时提示：点了必须有反应，不能静默失败 */
+.app-notice{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:min(86vw,520px);
+  padding:12px 18px;border-radius:14px;background:#3a2b2b;color:#ffe9e9;font-size:15px;line-height:1.5;
+  box-shadow:0 10px 30px rgba(0,0,0,.28);z-index:80;text-align:center}
+.app-notice[role=alert]{border:1px solid #7d5151}
