@@ -2,6 +2,7 @@ import { AlertMode } from "@microstar/core-protocol";
 import { estimateRemaining, resolveLightPolicy } from "@microstar/core-domain";
 import { card, cardTitle, h } from "../lib/dom.js";
 import { device } from "../lib/device.js";
+import { lampOccupancy } from "../lib/manual-lamp.js";
 import { store } from "../lib/store.js";
 import type { ScreenRenderer } from "../lib/nav.js";
 
@@ -25,18 +26,24 @@ export const render: ScreenRenderer = (ctx) => {
       : null,
     h(
       "div",
-      { class: `device-status ${device.isConnected ? "ok" : "off"}` },
+      { class: `device-status ${device.isConnected || lampOccupancy.manual ? "ok" : "off"}` },
       h("span", { class: "status-dot" }),
       h(
         "div",
         null,
-        h("strong", null, device.isConnected ? "已连接" : "未连接"),
+        h(
+          "strong",
+          null,
+          lampOccupancy.manual ? "手动控灯中" : device.isConnected ? "已连接" : "未连接",
+        ),
         h(
           "span",
           { class: "muted" },
-          device.isConnected
-            ? "第 4 阶训练结束时会自动断开"
-            : "第 4 阶才需要灯，前 3 阶不用连",
+          lampOccupancy.manual
+            ? "训练页正在手动控灯，这里不能重复连接"
+            : device.isConnected
+              ? "第 4 阶训练结束时会自动断开"
+              : "第 4 阶才需要灯，前 3 阶不用连",
         ),
       ),
     ),
@@ -53,17 +60,30 @@ export const render: ScreenRenderer = (ctx) => {
       { class: "row" },
       h(
         "button",
-        { class: "btn primary grow", onClick: () => void device.connect() },
+        {
+          class: "btn primary grow",
+          onClick: () => void device.connect(),
+          // 手动控灯占着灯的时候不能再连一次，否则会把那条连接挤掉
+          disabled: lampOccupancy.manual,
+        },
         device.isConnected ? "重新连接" : "连接",
       ),
       h(
         "button",
-        { class: "btn ghost", onClick: () => void device.selfTest(), disabled: !device.isConnected },
+        {
+          class: "btn ghost",
+          onClick: () => void device.selfTest(),
+          disabled: !device.isConnected || lampOccupancy.manual,
+        },
         "试亮",
       ),
       h(
         "button",
-        { class: "btn ghost", onClick: () => void device.findLamp(), disabled: !device.isConnected },
+        {
+          class: "btn ghost",
+          onClick: () => void device.findLamp(),
+          disabled: !device.isConnected || lampOccupancy.manual,
+        },
         "找灯",
       ),
     ),

@@ -360,3 +360,42 @@ describe("已拍的实物", () => {
     expect(store.state.plan.levelId).toBeTruthy();
   });
 });
+
+describe("手动控灯与自动连接的互斥", () => {
+  it("手动控灯占着灯时，设备页不能重复连接", async () => {
+    vi.resetModules();
+    resetStorage();
+    document.body.innerHTML = '<div id="root"></div>';
+
+    // 先拿到同一份模块实例，再挂页面
+    const lamp = await import("../src/lib/manual-lamp.js");
+    lamp.lampOccupancy.manual = true;
+
+    window.location.hash = "#/device";
+    const mod = await import("../src/app.js");
+    const root = document.getElementById("root")!;
+    mod.mount(root);
+
+    expect(root.textContent).toContain("手动控灯中");
+
+    const connect = [...root.querySelectorAll("button")].find(
+      (b) => b.textContent === "连接" || b.textContent === "重新连接",
+    ) as HTMLButtonElement | undefined;
+    expect(connect).toBeDefined();
+    expect(connect!.disabled).toBe(true);
+
+    lamp.lampOccupancy.manual = false;
+  });
+
+  it("自动训练连着灯时，手动控灯要提示先断开", async () => {
+    const root = await mountAt("#/train");
+    // 切到「实物」阶段才会出现手动控灯按钮
+    const tab = [...root.querySelectorAll("button")].find((b) => b.textContent?.includes("实物"))!;
+    tab.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    const btn = root.querySelector<HTMLButtonElement>('[data-manual-lamp="true"]');
+    expect(btn).not.toBeNull();
+    expect(btn!.textContent).toContain("蓝牙控灯");
+  });
+});

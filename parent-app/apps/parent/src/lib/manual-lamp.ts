@@ -66,6 +66,15 @@ export interface LampSettings {
 }
 export interface LampState { busy: boolean; active: boolean; message: string }
 
+/**
+ * 手动控灯占用标记。
+ *
+ * 手动控灯走的是独立的一条 GATT 连接，不经过 `device` 单例。
+ * 如果设备页完全不知道它在用灯，家长可以在设备页再连一次，
+ * 后连的那条会把先连的挤掉（ESP32 只接受一个连接），两边状态都会乱。
+ */
+export const lampOccupancy = { manual: false };
+
 /** One manual session, independent of the existing automatic training loop. */
 export class ManualLamp {
   state: LampState = { busy: false, active: false, message: "首次点击选择 MicroStar；使用当前计划的颜色和亮度。" };
@@ -77,6 +86,7 @@ export class ManualLamp {
 
   private update(state: LampState): void {
     this.state = state;
+    lampOccupancy.manual = state.busy || state.active;
     if (!this.disposed) this.notify(state);
   }
   private send(task: () => Promise<void>): Promise<void> {
