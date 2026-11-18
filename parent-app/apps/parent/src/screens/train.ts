@@ -170,8 +170,9 @@ export const render: ScreenRenderer = (ctx) => {
       ),
       status,
       tabs,
-      levelList,
+      // 计划和「开始训练」放在关卡列表上面：关卡多了也不用滑到底才能开始
       planCard,
+      levelList,
     ),
     destroy: () => manualLamp?.destroy(),
   };

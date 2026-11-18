@@ -5,6 +5,9 @@ export interface RangeResult {
   id: string; startedAt: number; endedAt: number; outcome: 'found' | 'aborted'; reason: string | null;
   sample: RangeSample | null; color: number[];
 }
+/** 单轮最长等待秒数。到点仍未找到就自动结束，避免一轮无限挂着。 */
+export const ROUND_CAP_SECONDS = 120;
+
 export interface RangeState {
   connected: boolean; busy: boolean; message: string; sample: RangeSample | null;
   waiting: 'start' | 'end' | null; color: number[] | null;
@@ -19,6 +22,8 @@ export class RangeLamp {
   private pending: Promise<void> = Promise.resolve();
   private deadline: ReturnType<typeof setTimeout> | undefined;
   private heartbeat: ReturnType<typeof setInterval> | undefined;
+  /** 单轮上限：孩子一直不动时不能无限挂着 */
+  private cap: ReturnType<typeof setTimeout> | undefined;
   private receivedAt = 0;
   private round: { id:string; startedAt:number; color:number[]; confirmed:boolean; last:RangeSample|null } | null = null;
   constructor(private notify: (state: RangeState) => void, private connector: LampBridge['connect'] = connectLamp,
@@ -33,8 +38,9 @@ export class RangeLamp {
   get canStart(): boolean {
     return this.state.connected && !this.state.busy && !this.locked && !!this.state.color && !!this.state.sample?.valid && Date.now()-this.receivedAt < 3000;
   }
-  private clearTimers(): void { clearTimeout(this.deadline); clearInterval(this.heartbeat); }
+  private clearTimers(): void { clearTimeout(this.deadline); clearTimeout(this.cap); clearInterval(this.heartbeat); }
   private finish(outcome: RangeResult['outcome'], reason: string | null): void {
+    clearTimeout(this.cap);
     const round=this.round; this.round=null;
     if (!round?.confirmed) return;
     this.save({id:round.id,startedAt:round.startedAt,endedAt:Date.now(),outcome,reason,sample:round.last??this.state.sample,color:round.color});
@@ -52,6 +58,13 @@ export class RangeLamp {
     if(this.state.waiting==='start' && sample.phase!==0) {
       clearTimeout(this.deadline); if(this.round)this.round.confirmed=true;
       this.update({waiting:null,message:'设备已开始寻找；颜色和亮度已锁定。'});
+      // 单轮上限：到点还没找到就自动结束，记为中断，不让它一直挂着
+      clearTimeout(this.cap);
+      this.cap=setTimeout(()=>{
+        if(!this.round||this.state.waiting)return;
+        this.update({message:`这一轮超过 ${ROUND_CAP_SECONDS} 秒没有找到，已自动结束并记为中断。`});
+        void this.end(false,'timeout');
+      },ROUND_CAP_SECONDS*1000);
     }
     if(sample.phase===2 && this.round?.confirmed) {
       this.finish('found',null);
@@ -126,9 +139,9 @@ export class RangeLamp {
       if(valid()&&this.state.waiting==='start')this.deadline=setTimeout(()=>void this.disconnect('设备未确认开始，已停止连接；未记录为完成。'),5000);
     });
   }
-  end(off=false):Promise<void>{
+  end(off=false,reason='parent-ended'):Promise<void>{
     return this.command(async(c,valid)=>{
-      clearTimeout(this.deadline);this.finish('aborted','parent-ended');
+      clearTimeout(this.deadline);this.finish('aborted',reason);
       this.update({waiting:'end',message:'正在结束，等待设备确认…'});
       try{await c.writeAlert(off?0:0x11);}catch(error){if(valid())void this.disconnect(`停止未确认，请检查实灯：${String(error)}`);return;}
       if(valid()&&this.state.waiting==='end')this.deadline=setTimeout(()=>void this.disconnect('停止未确认，请检查实灯；连接已断开。'),5000);

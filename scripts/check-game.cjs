@@ -22,7 +22,7 @@ function start(p,l,mode='slap'){run(`S.phase=${p};S.mode=${JSON.stringify(mode)}
 const node={dataset:{object:'target'},insertAdjacentHTML:()=>{},getBoundingClientRect:()=>({left:0,right:100,top:0,bottom:100})};
 function tap(target=node,id=1){listeners.pointerdown({button:0,pointerId:id,preventDefault:()=>{},target:{closest:s=>s==='[data-object]'?target:null}});}
 assert.match(root.innerHTML,/点击或拍击来开始吧/);run('phaseView()');assert.match(root.innerHTML,/Phase III/);
-for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:0);}
+for(const p of [1,2,3]){run(`S.phase=${p}`);assert.equal(run('phaseLevels().length'),p===1?10:p===2?10:2,'P3 always ships two built-in levels');}
 // Compare the restored P2/P3 with actual historical source, not a hand-written replica.
 const old=environment(fs.readFileSync(require('node:path').join(__dirname,'fixtures/legacy-game.js'),'utf8'));
 const normalize=s=>s.replace(/<p class="(?:task-caption|mode-note)[^"]*"[^>]*>[\s\S]*?<\/p>/g,'').replace(/ child-sr-only/g,'').replace(/story-levels/g,'').replace(/<button class="preview[^"]*" data-level="[4-9]"[\s\S]*?<\/button>/g,'').replace(/<button class="parent-entry"[\s\S]*?<\/button>/g,'').replace(/class="([^"]*)"/g,(_,x)=>'class="'+x.trim().replace(/\s+/g,' ')+'"');
@@ -138,12 +138,18 @@ start(2,8);assert.doesNotMatch(run('storyScene()'),/opacity="1"/);tap();advance(
 start(2,9);tap(null);assert.equal(run('S.round'),0,'matching never chooses automatically in slap mode');tap({dataset:{object:'other'}});assert.equal(run('S.round'),0);tap();advance(1100);assert.equal(run('Story.step'),1);
 start(2,5,'dwell');tap(node,50);advance(500);wins.pointerup({pointerId:50});advance(1000);assert.equal(run('S.round'),0);tap(node,51);advance(1250);assert.equal(run('Story.busy'),true);
 console.log('PASS: P2 6–10 three settled apples, bamboo then panda, two blinks then winged flight, feature growth, all silhouette choices; repeat protection, input modes, pause/parent and automatic progression.');
-// P2 success reaches an honest empty photo stage when no photos exist.
+// P2 success reaches the photo stage. Built-in levels mean it is never empty,
+// even for a family that has not taken any photos yet.
 start(2,9,'precise');for(let i=0;i<3;i++){tap();advance(1050);}advance(1200);
-assert.equal(run('S.phase'),3);assert.equal(run('S.page'),'photo-empty');
-assert.match(root.innerHTML,/还没有照片关卡/);assert.doesNotMatch(root.innerHTML,/可旋转的黄色立体杯子/);
-advance(95000);assert.equal(run('S.page'),'photo-empty');
-run('window.microstarAndroidBack()');assert.equal(run('S.page'),'phases');
+assert.equal(run('S.phase'),3);assert.equal(run('S.page'),'game');
+assert.equal(run('currentLevel().id'),'photo-cup','P3 opens on a built-in level');
+assert.match(root.innerHTML,/data:image\/svg\+xml/,'built-in level renders as an image');
+assert.doesNotMatch(root.innerHTML,/可旋转的黄色立体杯子/);
+advance(95000);
+// P3 关卡是正经游戏页：返回键先开暂停，不会掉到空白页
+run('setOverlay(null)');
+run('window.microstarAndroidBack()');assert.equal(run('S.overlay'),'pause','back inside a photo level opens pause');
+run('phaseView()');assert.equal(run('S.page'),'phases');
 for(const phase of [1,2]){run(`S.phase=${phase}`);const count=run('phaseLevels().length');for(let i=0;i<count;i++){start(phase,i);assert.doesNotMatch(root.innerHTML,/<p class="(?:task-caption|mode-note|advanced-hint|advanced-mode-note)/);}}
 // Directional apples and a stationary panda: only the loose bamboo and mouth change.
 start(2,5);assert.match(run('storyScene()'),/aria-label="苹果树" style="left:50%;top:40%/);
@@ -151,12 +157,13 @@ for(let i=0;i<3;i++){tap();advance(1300);const html=run('storyScene()');const ap
 start(2,6,'precise');tap();advance(1300);tap();const mouthStates=[];
 for(let i=0;i<4;i++){advance(300);const html=run('storyScene()');assert.match(html,/aria-label="熊猫" style="left:28%;top:58%;width:36%/);assert.doesNotMatch(html,/panda-chew/);mouthStates.push(html.match(/class="panda-mouth"[^>]*ry="([^"]*)"/)[1]);}
 assert.ok(new Set(mouthStates).size>1,'mouth opens and closes without moving body');assert.match(run('storyScene()'),/panda-bite/);run('setOverlay("pause")');const frozenMeal=run('storyScene()');advance(1000);assert.equal(run('storyScene()'),frozenMeal);
-console.log('PASS: P2 to empty photo stage, photo-stage back navigation and existing P1/P2 scenes.');
+console.log('PASS: P2 to built-in photo stage, photo-stage back navigation and existing P1/P2 scenes.');
 
 start(1,0);advance(95000);assert.equal(run('S.round'),0,'observation has no automatic deadline');
-wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:9,mode:'precise',sound:false,size:'large',timeoutMs:12000}});assert.equal(run('S.phase'),3);assert.equal(run('S.level'),0);assert.equal(run('S.page'),'photo-empty');advance(95000);assert.equal(run('S.level'),0);assert.equal(run('S.round'),0);
+wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:9,mode:'precise',sound:false,size:'large',timeoutMs:12000}});assert.equal(run('S.phase'),3);assert.equal(run('S.level'),1,'out-of-range index clamps to the last built-in level');assert.equal(run('S.page'),'game');assert.equal(run('S.round'),0);
 start(2,5);tap();assert.equal(run('currentRec.rounds.length'),1);const stored=run("JSON.parse(localStorage.getItem('microstar.game.sessions'))");assert.ok(stored.some(r=>r.phase===2&&r.levelIndex===5&&r.rounds.length===1));
 
+run("localStorage.setItem('microstar.game.sessions','[]')");
 const photos=[{id:'custom-first',name:'我的杯子',target:'我的杯子',image:'data:image/png;base64,AA=='},{id:'custom-second',name:'我的小车',target:'我的小车',image:'data:image/jpeg;base64,BBBB'}];
 run(`localStorage.setItem('microstar.custom-levels.v1',${JSON.stringify(JSON.stringify(photos))})`);
 wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,index:0,levelId:'custom-second',mode:'precise',size:'huge'}});
@@ -173,8 +180,8 @@ for(const mode of ['slap','precise','dwell']){
  }
  assert.equal(run('S.level'),1);assert.equal(run('currentLevel().id'),'custom-second');
 }
-run('setOverlay("menu")');assert.equal((root.innerHTML.match(/data-level=/g)||[]).length,2);assert.match(root.innerHTML,/我的杯子/);assert.doesNotMatch(root.innerHTML,/转转黄杯子|让小鸡跳舞/);
+run('setOverlay("menu")');assert.equal((root.innerHTML.match(/data-level=/g)||[]).length,4,'2 built-in + 2 custom');assert.match(root.innerHTML,/我的杯子/);assert.doesNotMatch(root.innerHTML,/转转黄杯子|让小鸡跳舞/);
 wins.message({origin:'https://example.test',source,data:{type:'microstar:start-level',phase:3,levelId:'custom-deleted',index:0}});assert.equal(run('S.level'),1,'missing photo does not launch another one');
 assert.equal(run("JSON.parse(localStorage.getItem('microstar.game.sessions')).filter(r=>r.phase===3).every(r=>r.levelId==='custom-first')"),true);
-run("openParent();localStorage.setItem('microstar.custom-levels.v1','[]');closeParent()");assert.equal(run('S.page'),'photo-empty','deleting the active photo in the parent area must not crash on return');
-console.log('PASS: photo-only P3, stable IDs, shared images, three input modes, pause, progression, records and deletion.');
+run("openParent();localStorage.setItem('microstar.custom-levels.v1','[]');closeParent()");assert.equal(run('S.page'),'phases','deleting the level you were on returns to the phase list instead of crashing');
+console.log('PASS: built-in + custom photos in P3, stable IDs, shared images, three input modes, pause, progression, records and deletion.');

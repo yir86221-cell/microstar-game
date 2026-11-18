@@ -1,5 +1,5 @@
 import { card, cardTitle, h } from './dom.js';
-import { RangeLamp } from './range-lamp.js';
+import { RangeLamp, ROUND_CAP_SECONDS } from './range-lamp.js';
 import { saveRangeResult } from './range-record.js';
 import { store } from './store.js';
 import { lampOccupancy, type LampSettings } from './manual-lamp.js';
@@ -85,7 +85,13 @@ export function rangePanel(training:boolean) {
       settings().photosensitive?h('p',{class:'hint'},'档案已禁用试灯闪烁，可用恒亮。'):null),
     card(cardTitle(training?'实物寻找':'实时测距'),distance,phase,timing,
       training?start:null,end,
-      h('p',{class:'hint'},'模块放在物品外，朝向目标物品。读数稳定是准备提示，开始由家长确认。找到后由设备控制呼吸灯和 3 次短震。'),
+      h('p',{class:'hint'},'读数稳定只是准备提示，开始仍由家长确认；找到后由设备控制呼吸灯和 3 次短震。'),
+      h('details',{class:'card'},h('summary',null,'怎么摆、孩子坐哪？'),
+        h('ul',{class:'hint'},
+          h('li',null,'模块放在物品旁边，不要贴在物品上；探头朝向物品，中间别挡东西。'),
+          h('li',null,'物品离孩子 30–60 cm，孩子面对物品坐正，提示灯和物品放在一起。'),
+          h('li',null,'每次开始前看一眼距离读数：一直在跳说明没对准或手挡着，先调好再开始。'),
+          h('li',null,`一轮最多等 ${ROUND_CAP_SECONDS} 秒，没找到会自动结束并记为中断。`))),
       settings().tactileSensitive?h('p',{class:'hint'},'档案要求关闭震动；此固件没有关闭震动指令，暂不启动训练。'):null),
     h('p',{class:'hint'},'离开本页或切到后台会请求关灯并断开。设备测距结果不等同于抓握能力或康复评分。'),
     h('details',{class:'card'},h('summary',null,'连不上怎么办？'),h('p',{class:'hint'},'确认设备已上电，蓝牙和附近设备权限已开启。关闭其他连接 MicroStar 的应用；本版本需要新版测距固件。')));

@@ -311,7 +311,7 @@ describe("计划页与档案页", () => {
 });
 
 describe("已拍的实物", () => {
-  it("删除最后一张照片后保留空选择，不退回卡通关卡", async () => {
+  it("删除最后一张照片后退回内置关卡，不退回卡通关卡", async () => {
     vi.resetModules();
     resetStorage();
 
@@ -354,7 +354,8 @@ describe("已拍的实物", () => {
     // 关卡没了，而且计划不能停在一个已经不存在的关卡上
     expect(root.textContent).not.toContain("我的水杯");
     expect(store.state.plan.levelId).not.toBe(level.id);
-    expect(store.state.plan.levelId).toBe("");
+    // 第三阶段现在有内置关卡兜底：既不留空，也不会退回第一阶段的小鸡
+    expect(store.state.plan.levelId).toBe("photo-cup");
   });
 });
 
@@ -415,5 +416,56 @@ describe("手动控灯与自动连接的互斥", () => {
     expect(root.textContent).toContain("请先在设备页停止并断开");
 
     lamp.lampOccupancy.training = false;
+  });
+});
+
+describe("训练页的排布", () => {
+  it("开始训练在当前关卡列表上方，不用滑到底", async () => {
+    const root = await mountAt("#/train");
+    const html = root.innerHTML;
+    const start = html.indexOf("开始训练");
+    const list = html.indexOf("level-list");
+    expect(start).toBeGreaterThan(-1);
+    expect(list).toBeGreaterThan(-1);
+    expect(start).toBeLessThan(list);
+  });
+
+  it("第三阶段的「拍照制作关卡」也在关卡列表上方", async () => {
+    const root = await mountAt("#/train");
+    const { store } = await import("../src/lib/store.js");
+    store.update((s) => {
+      s.plan.stage = 3;
+      s.plan.levelId = "photo-cup";
+    });
+    await new Promise((r) => setTimeout(r, 30));
+
+    const html = root.innerHTML;
+    const make = html.indexOf("拍照制作关卡");
+    const list = html.indexOf("level-list");
+    expect(make).toBeGreaterThan(-1);
+    expect(list).toBeGreaterThan(-1);
+    expect(make).toBeLessThan(list);
+  });
+
+  it("第三阶段把家长自制的关卡排在内置关卡前面", async () => {
+    vi.resetModules();
+    resetStorage();
+    window.localStorage.setItem(
+      "microstar.custom-levels.v1",
+      JSON.stringify([
+        {
+          id: "custom-own-1",
+          name: "我的水壶",
+          target: "我的水壶",
+          color: "#9fd8b4",
+          image: "data:image/png;base64,AAAA",
+          thumb: "data:image/png;base64,AAAA",
+          createdAt: Date.now(),
+        },
+      ]),
+    );
+
+    const { levelsOf } = await import("../src/lib/store.js");
+    expect(levelsOf(3).map((l) => l.id)).toEqual(["custom-own-1", "photo-cup", "photo-bottle"]);
   });
 });
