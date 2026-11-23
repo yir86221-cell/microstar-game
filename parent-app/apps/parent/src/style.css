@@ -1410,3 +1410,94 @@ html.embedded #tabbar {
   padding:12px 18px;border-radius:14px;background:#3a2b2b;color:#ffe9e9;font-size:15px;line-height:1.5;
   box-shadow:0 10px 30px rgba(0,0,0,.28);z-index:80;text-align:center}
 .app-notice[role=alert]{border:1px solid #7d5151}
+/* Shared mint theme: complete the existing parent design across every screen. */
+:root { --muted: #a4adb0; --surface-selected: #20322b; --radius: 28px; color-scheme: dark; }
+.screen { gap: 18px; }
+.page-head { align-items: center; padding: 4px 2px 8px; }
+.page-head h1 { letter-spacing: .01em; line-height: 1.3; }
+.page-head .sub, .hint, .muted, .card-hint { font-size: 14px; line-height: 1.65; }
+.card { gap: 16px; }
+.card-head h2 { color: #e0e9e3; }
+.btn, .seg, .mode-chip, .phase-tab, .level-card, .entry, .rec-head { transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+.btn.small, .link-btn { font-size: 14px; min-height: 44px; }
+.link-btn { padding: 8px 4px; }
+.btn.ghost, .btn.small { background: var(--panel-2); color: #c5d1ca; }
+.btn.danger { background: #342526; color: #f1bbbb; }
+.phase-tabs { gap: 8px; }
+.phase-tab { border-radius: 22px; min-height: 68px; padding: 12px 6px; }
+.phase-tab.active { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.phase-tab-name { font-size: 14px; font-weight: 600; }
+.phase-tab-count { font-size: 12px; opacity: .85; }
+.level-list, .entries, .rec-list { gap: 12px; }
+.level-card { border: 0; border-radius: 24px; padding: 18px; min-height: 80px; }
+.level-card.selected { background: var(--surface-selected); box-shadow: inset 0 0 0 2px var(--accent); }
+.level-dot { width: 24px; height: 24px; flex: none; }
+.level-text span, .plan-meta { font-size: 14px; line-height: 1.5; }
+.level-text strong { font-size: 16px; line-height: 1.5; }
+.mode-chip { border-radius: 999px; min-height: 48px; }
+.mode-chip.selected { color: var(--accent-ink); }
+.entry, .rec { border-radius: 24px; }
+.entry { min-height: 76px; padding: 18px 20px; }
+.entry-main { min-width: 0; gap: 6px; }
+.entry-main strong, .rec-main strong { font-size: 16px; }
+.rec-head { padding: 20px; }
+.rec-detail { padding: 0 20px 20px; }
+.status-strip, .device-status { border-radius: 22px; padding: 16px; }
+.device-status.ok .status-dot { box-shadow: none; }
+.stat { padding: 18px 12px; }
+.stat span, .stat small, .chip span { font-size: 13px; line-height: 1.5; }
+.field, .switch-row { padding: 12px 0; }
+.field > span { font-size: 15px; color: #c4cfc8; }
+.field select { appearance: none; padding-right: 38px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23a8d5c8' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+.field input, .field select { max-width: 100%; min-width: 0; }
+.switch-row input[type=checkbox] { appearance: none; width: 48px; height: 28px; border-radius: 999px; background: #3b4540; position: relative; transition: background .18s; }
+.switch-row input[type=checkbox]::before { content: ''; position: absolute; left: 4px; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: #dce6e0; transition: transform .18s; }
+.switch-row input[type=checkbox]:checked { background: var(--accent); }
+.switch-row input[type=checkbox]:checked::before { transform: translateX(20px); background: #163427; }
+.chart-wrap { background: #101412; border-radius: 22px; padding: 14px 10px 8px; }
+.demo-banner, .gate-banner.blocked { background: #302a20; color: #f0d19a; border-radius: 20px; font-size: 14px; }
+.shot-frame { background: #101412; border: 0; border-radius: 26px; }
+.shot-guide { border: 0; border-radius: 24px; background: #1c2822; color: #b1c6b9; padding: 20px; text-align: center; font-size: 14px; }
+.compare img, .photo-level-preview { border-radius: 24px; }
+.compare figcaption { font-size: 14px; }
+.photo-library-item { border: 0; background: var(--panel-2); border-radius: 24px; padding: 18px; margin-bottom: 12px; }
+.custom-thumb { border-radius: 14px; width: 44px; height: 44px; }
+.cutout-canvas, .cutout-preview { border-radius: 22px; }
+.cutout-tools .btn { padding: 10px 16px; }
+.range-controls { gap: 12px; }
+.range-controls .btn, .range-colors .btn { white-space: normal; line-height: 1.5; }
+.app-notice { bottom: calc(var(--tabbar-h) + max(18px, env(safe-area-inset-bottom))); border-radius: 22px; background: #352a29; color: #ffe2dd; }
+.app-notice[role=alert] { border: 0; }
+#tabbar, html.embedded #tabbar { background: #1e2522f5; border-radius: 26px; }
+.tab { color: #a4b0a8; font-size: 13px; gap: 4px; }
+.tab.active { background: #32483c; color: #c7ecda; }
+.session-head { padding-bottom: 12px; }
+.session-hint { font-size: 14px; }
+.child-exit { border: 0; border-radius: 999px; background: #101412; color: #98aaa0; }
+.child-exit.holding { background: #20322b; color: var(--accent); }
+@media (hover:hover) {
+  .level-card:not(.selected):hover, .entry:hover, .rec-head:hover { background: #232e28; }
+  .btn:not(.primary):not(:disabled):hover, .seg:not(.active):hover, .mode-chip:not(.selected):hover { background: #2a3830; }
+  .btn.primary:not(:disabled):hover { background: #bde5d8; }
+}
+@media (max-width: 430px) {
+  .card { padding: 20px; }
+  .field { gap: 12px; }
+  .field > span { max-width: 42%; }
+  .field select, .field input[type=text], .field input[type=date] { flex: 1; width: 0; }
+  .phase-tab { border-radius: 18px; }
+  .phase-tab-name { font-size: 13px; }
+  .phase-tabs { gap: 6px; }
+  .stat-grid { gap: 8px; }
+  .stat { padding: 16px 8px; }
+  .range-colors { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+}
+@media (orientation:landscape) and (max-height:620px) {
+  .screen { gap: 12px; }
+  .card { padding: 18px; }
+  #tabbar, html.embedded #tabbar { height: 58px; border-radius: 22px; }
+  .tab { gap: 2px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .btn, .seg, .mode-chip, .phase-tab, .level-card, .entry, .rec-head, .switch-row input[type=checkbox], .switch-row input[type=checkbox]::before { transition: none; }
+}
